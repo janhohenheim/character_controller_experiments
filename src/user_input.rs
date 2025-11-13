@@ -16,9 +16,10 @@ pub(crate) struct PlayerInput;
 
 impl PlayerInput {
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
-        world.commands().entity(ctx.entity).insert((
-            Camera3d::default(),
-            actions!(PlayerInput[
+        world
+            .commands()
+            .entity(ctx.entity)
+            .insert(actions!(PlayerInput[
                 (
                     Action::<Movement>::new(),
                     DeadZone::default(),
@@ -32,7 +33,6 @@ impl PlayerInput {
                     Action::<Jump>::new(),
                     bindings![KeyCode::Space, GamepadButton::South],
                 )
-            ]),
-        ));
+            ]));
     }
 }
