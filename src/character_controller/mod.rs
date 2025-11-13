@@ -33,11 +33,26 @@ pub(crate) struct CharacterController {
     pub(crate) speed: Vec2,
     pub(crate) air_speed: f32,
     pub(crate) acceleration: f32,
+    /// The maximum speed the character can reach.
+    ///
+    /// Default: 8 m/s
     pub(crate) max_speed: f32,
+    /// The gravity acceleration applied to the character.
+    ///
+    /// Default: 20 m/s²
     pub(crate) gravity: f32,
     pub(crate) friction_hz: f32,
     pub(crate) stop_speed: f32,
+    /// The cosine of the maximum slope angle the character can climb.
+    ///
+    /// Default: 0.7 (corresponds to 45.57 degrees)
     pub(crate) max_slope_cosine: f32,
+    /// If the y component of the velocity is above this value, the character is considered airborne regardless of ground contact.
+    /// This allows sliding up slopes if fast enough.
+    ///
+    /// Default: 4.5 m/s
+    pub(crate) airborne_speed: f32,
+    /// Implicitly always excludes the character's own entity.
     pub(crate) filter: SpatialQueryFilter,
 }
 
@@ -53,6 +68,7 @@ impl Default for CharacterController {
             stop_speed: 2.5,
             // 45.57 degrees
             max_slope_cosine: 0.7,
+            airborne_speed: 4.5,
             filter: SpatialQueryFilter::default(),
         }
     }

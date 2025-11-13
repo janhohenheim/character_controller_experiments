@@ -98,20 +98,22 @@ struct Ctx {
 fn player_move(
     In((mut transform, mut velocity, ctx)): In<(Transform, Vec3, Ctx)>,
     spatial: Res<SpatialQueryPipeline>,
-) -> (Transform, Vec3) {
+) -> (Transform, Vec3, Option<Entity>) {
     // AngleVectors
 
     // NudgePositions
 
     // VectorCopy (pmove.cmd.angles, pmove.angles);
 
-    // CategorizePosition
+    (transform, grounded) = categorize_position(transform, velocity, &ctx, s & patial);
 
     // jumpbutton()
 
     velocity = friction(transform, velocity, &ctx, &spatial);
     (transform, velocity) = air_move(transform, velocity, &spatial, &ctx);
-    // CategorizePosition
+
+    (transform, grounded) = categorize_position(transform, velocity, &ctx, &spatial);
+
     (transform, velocity)
 }
 
@@ -404,4 +406,36 @@ fn friction(
     };
     let new_speed = f32::max(speed - drop, 0.0);
     velocity / speed * new_speed
+}
+
+#[must_use]
+fn categorize_position(
+    mut transform: Transform,
+    velocity: Vec3,
+    ctx: &Ctx,
+    spatial: &SpatialQueryPipeline,
+) -> (Transform, Option<Entity>) {
+    if velocity.y > ctx.cfg.airborne_speed {
+        return (transform, None);
+    }
+    let cast_len = 0.025;
+    let cast_dir = Dir3::NEG_Y;
+    let trace = spatial.cast_shape(
+        &ctx.collider,
+        transform.translation,
+        transform.rotation,
+        cast_dir,
+        &ShapeCastConfig::from_max_distance(cast_len),
+        &ctx.cfg.filter,
+    );
+    let Some(trace) = trace else {
+        return (transform, None);
+    };
+    if trace.normal1.y < ctx.cfg.max_slope_cosine {
+        return (transform, None);
+    };
+    transform.translation += cast_dir * trace.distance;
+    let grounded = trace.entity;
+
+    (transform, Some(grounded))
 }
