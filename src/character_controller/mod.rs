@@ -9,7 +9,6 @@ use bevy::{
 mod fixed_update_util;
 mod input;
 mod quake_1;
-mod readonly_spatial_query;
 
 pub(crate) use input::{AccumulatedInput, Jump, Movement};
 

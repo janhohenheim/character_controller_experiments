@@ -3,7 +3,7 @@ use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::character_controller::{
     CharacterController, CharacterControllerState, CharacterControllerSystems,
-    input::AccumulatedInput, readonly_spatial_query::ReadOnlySpatialQuery,
+    input::AccumulatedInput,
 };
 
 pub(super) fn plugin(app: &mut App) {
@@ -97,7 +97,7 @@ struct Ctx {
 #[must_use]
 fn player_move(
     In((mut transform, mut velocity, ctx)): In<(Transform, Vec3, Ctx)>,
-    spatial: ReadOnlySpatialQuery,
+    spatial: Res<SpatialQueryPipeline>,
 ) -> (Transform, Vec3) {
     // AngleVectors
 
@@ -119,7 +119,7 @@ fn player_move(
 fn air_move(
     mut transform: Transform,
     mut velocity: Vec3,
-    spatial: &ReadOnlySpatialQuery,
+    spatial: &SpatialQueryPipeline,
     ctx: &Ctx,
 ) -> (Transform, Vec3) {
     let movement = ctx.input.last_movement.unwrap_or_default();
@@ -175,7 +175,7 @@ fn friction(
     transform: Transform,
     velocity: Vec3,
     ctx: &Ctx,
-    spatial: &ReadOnlySpatialQuery,
+    spatial: &SpatialQueryPipeline,
 ) -> Vec3 {
     let speed = velocity.length();
     if speed < 0.025 {
@@ -233,7 +233,7 @@ fn fly_move(
     mut transform: Transform,
     mut velocity: Vec3,
     ctx: &Ctx,
-    spatial: &ReadOnlySpatialQuery,
+    spatial: &SpatialQueryPipeline,
 ) -> (Transform, Vec3) {
     let mut time_left = ctx.dt;
     const NUM_BUMPS: usize = 4;
