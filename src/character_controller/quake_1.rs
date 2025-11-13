@@ -99,6 +99,19 @@ fn player_move(
     In((mut transform, mut velocity, ctx)): In<(Transform, Vec3, Ctx)>,
     spatial: ReadOnlySpatialQuery,
 ) -> (Transform, Vec3) {
+    // AngleVectors
+
+    // NudgePositions
+
+    // VectorCopy (pmove.cmd.angles, pmove.angles);
+
+    // CategorizePosition
+
+    // jumpbutton()
+
+    velocity = friction(transform, velocity, &ctx, &spatial);
+    (transform, velocity) = air_move(transform, velocity, &spatial, &ctx);
+    // CategorizePosition
     (transform, velocity)
 }
 
@@ -106,7 +119,7 @@ fn player_move(
 fn air_move(
     mut transform: Transform,
     mut velocity: Vec3,
-    spatial: ReadOnlySpatialQuery,
+    spatial: &ReadOnlySpatialQuery,
     ctx: &Ctx,
 ) -> (Transform, Vec3) {
     let movement = ctx.input.last_movement.unwrap_or_default();
@@ -162,7 +175,7 @@ fn friction(
     transform: Transform,
     velocity: Vec3,
     ctx: &Ctx,
-    spatial: ReadOnlySpatialQuery,
+    spatial: &ReadOnlySpatialQuery,
 ) -> Vec3 {
     let speed = velocity.length();
     if speed < 0.025 {
@@ -220,7 +233,7 @@ fn fly_move(
     mut transform: Transform,
     mut velocity: Vec3,
     ctx: &Ctx,
-    spatial: ReadOnlySpatialQuery,
+    spatial: &ReadOnlySpatialQuery,
 ) -> (Transform, Vec3) {
     let mut time_left = ctx.dt;
     const NUM_BUMPS: usize = 4;
