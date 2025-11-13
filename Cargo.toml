@@ -1,0 +1,11 @@
+[package]
+name = "character_controller_experiment"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+avian3d = "0.4.1"
+bevy = "0.17.2"
+bevy_enhanced_input = "0.19.3"
+bevy_trenchbroom = "0.10.0"
+bevy_trenchbroom_avian = "0.10.0"
