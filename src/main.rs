@@ -27,6 +27,7 @@ fn main() -> AppExit {
         ))
         .add_plugins((user_input::plugin, character_controller::plugin))
         .add_systems(Startup, setup)
+        .add_systems(Update, print_transform)
         .run()
 }
 
@@ -47,6 +48,12 @@ impl Player {
             Camera3d::default(),
             PlayerInput,
             CharacterController::default(),
+            RigidBody::Kinematic,
+            Collider::capsule(0.25, 1.3),
         ));
     }
+}
+
+fn print_transform(transform: Single<&Transform, With<CharacterController>>) {
+    println!("Position: {}", transform.translation);
 }
