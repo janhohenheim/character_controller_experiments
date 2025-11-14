@@ -207,7 +207,7 @@ fn ground_move(
         &ctx.cfg.filter,
     );
     if let Some(trace) = trace {
-        transform.translation += cast_dir * trace.distance;
+        transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width).max(0.0);
     } else {
         transform.translation += cast_dir * cast_len;
     }
@@ -230,7 +230,7 @@ fn ground_move(
         if trace.normal1.y < ctx.cfg.max_slope_cosine {
             return (down, down_velocity);
         }
-        transform.translation += cast_dir * trace.distance;
+        transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width).max(0.0);
     } else {
         transform.translation += cast_dir * cast_len;
     }
@@ -285,7 +285,7 @@ fn fly_move(
             // moved the entire distance
             break;
         };
-        transform.translation += cast_dir * trace.distance;
+        transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width).max(0.0);
 
         if trace.distance > 0.0 {
             // actually covered some distance
@@ -453,7 +453,7 @@ fn categorize_position(
     if trace.normal1.y < ctx.cfg.max_slope_cosine {
         return (transform, None);
     };
-    transform.translation += cast_dir * trace.distance;
+    transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width).max(0.0);
     let grounded = trace.entity;
 
     (transform, Some(grounded))
@@ -470,7 +470,7 @@ fn nudge_position(
     for z in 0..3 {
         for x in 0..3 {
             for y in 0..3 {
-                let offset = Vec3::new(SIGN[x], SIGN[y], SIGN[z]) * 0.025 / 8.0;
+                let offset = Vec3::new(SIGN[x], SIGN[y], SIGN[z]) * 0.01;
                 transform.translation = base.translation + offset;
                 let mut free = true;
                 spatial.shape_intersections_callback(

@@ -54,6 +54,7 @@ pub(crate) struct CharacterController {
     pub(crate) airborne_speed: f32,
     /// Implicitly always excludes the character's own entity.
     pub(crate) filter: SpatialQueryFilter,
+    pub(crate) skin_width: f32,
 }
 
 impl Default for CharacterController {
@@ -69,6 +70,7 @@ impl Default for CharacterController {
             // 45.57 degrees
             max_slope_cosine: 0.7,
             airborne_speed: 4.5,
+            skin_width: 0.01,
             filter: SpatialQueryFilter::default(),
         }
     }
