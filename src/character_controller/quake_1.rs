@@ -196,7 +196,7 @@ fn ground_move(
     let (down, down_velocity) = fly_move(transform, velocity, ctx, spatial);
 
     // move up a stair height
-    let cast_len = 0.5;
+    let cast_len = ctx.cfg.step_height;
     let cast_dir = Dir3::Y;
     let trace = spatial.cast_shape(
         &ctx.collider,

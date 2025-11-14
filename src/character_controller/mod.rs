@@ -55,6 +55,7 @@ pub(crate) struct CharacterController {
     /// Implicitly always excludes the character's own entity.
     pub(crate) filter: SpatialQueryFilter,
     pub(crate) skin_width: f32,
+    pub(crate) step_height: f32,
 }
 
 impl Default for CharacterController {
@@ -71,6 +72,7 @@ impl Default for CharacterController {
             max_slope_cosine: 0.7,
             airborne_speed: 4.5,
             skin_width: 0.01,
+            step_height: 0.5,
             filter: SpatialQueryFilter::default(),
         }
     }
