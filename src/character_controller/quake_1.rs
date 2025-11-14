@@ -112,7 +112,7 @@ fn player_move(
     let mut grounded: Option<Entity>;
     (transform, grounded) = categorize_position(transform, velocity, &ctx, &spatial);
 
-    // jumpbutton()
+    (grounded, velocity) = jump_button(velocity, grounded, &ctx);
 
     velocity = friction(transform, velocity, grounded, &ctx, &spatial);
     (transform, velocity) = air_move(transform, velocity, grounded, &spatial, &ctx);
@@ -480,4 +480,12 @@ fn sweep_check(
     let safe_distance = hit.distance - ctx.cfg.skin_width;
     hit.distance = safe_distance;
     Some(hit)
+}
+
+fn jump_button(velocity: Vec3, grounded: Option<Entity>, ctx: &Ctx) -> (Option<Entity>, Vec3) {
+    if !ctx.input.jumped || grounded.is_none() {
+        (grounded, velocity)
+    } else {
+        (None, velocity + Vec3::Y * ctx.cfg.jump_speed)
+    }
 }
