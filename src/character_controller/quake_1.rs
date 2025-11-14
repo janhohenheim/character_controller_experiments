@@ -285,7 +285,7 @@ fn fly_move(
             // moved the entire distance
             break;
         };
-        transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width).max(0.0);
+        transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width);
 
         if trace.distance > 0.0 {
             // actually covered some distance
