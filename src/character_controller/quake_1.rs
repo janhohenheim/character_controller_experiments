@@ -193,7 +193,7 @@ fn ground_move(
     let cast_dir = Dir3::Y;
     let trace = sweep_check(transform, cast_dir, cast_len, spatial, ctx);
     if let Some(trace) = trace {
-        transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width);
+        transform.translation += cast_dir * trace.distance;
     } else {
         transform.translation += cast_dir * cast_len;
     }
@@ -209,7 +209,7 @@ fn ground_move(
         if trace.normal1.y < ctx.cfg.max_slope_cosine {
             return (down, down_velocity);
         }
-        transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width);
+        transform.translation += cast_dir * trace.distance;
     } else {
         transform.translation += cast_dir * cast_len;
     }
@@ -257,7 +257,7 @@ fn fly_move(
             // moved the entire distance
             break;
         };
-        transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width);
+        transform.translation += cast_dir * trace.distance;
 
         if trace.distance > 0.0 {
             // actually covered some distance
@@ -412,7 +412,7 @@ fn categorize_position(
     if trace.normal1.y < ctx.cfg.max_slope_cosine {
         return (transform, None);
     };
-    transform.translation += cast_dir * (trace.distance - ctx.cfg.skin_width);
+    transform.translation += cast_dir * trace.distance;
     let grounded = trace.entity;
 
     (transform, Some(grounded))
