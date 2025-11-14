@@ -349,7 +349,7 @@ fn accelerate(wish_dir: Dir3, wish_speed: f32, velocity: Vec3, ctx: &Ctx) -> Vec
         return velocity;
     }
 
-    let accel_speed = f32::min(ctx.cfg.acceleration * ctx.dt * wish_speed, add_speed);
+    let accel_speed = f32::min(ctx.cfg.acceleration_hz * ctx.dt * wish_speed, add_speed);
     velocity + accel_speed * wish_dir
 }
 
@@ -364,7 +364,7 @@ fn air_accelerate(wish_dir: Dir3, wish_speed: f32, velocity: Vec3, ctx: &Ctx) ->
         return velocity;
     }
 
-    let accel_speed = f32::min(ctx.cfg.acceleration * ctx.dt * wish_speed, add_speed);
+    let accel_speed = f32::min(ctx.cfg.acceleration_hz * ctx.dt * wish_speed, add_speed);
     velocity + accel_speed * wish_dir
 }
 

@@ -32,7 +32,7 @@ pub(super) fn plugin(app: &mut App) {
 pub(crate) struct CharacterController {
     pub(crate) speed: Vec2,
     pub(crate) air_speed: f32,
-    pub(crate) acceleration: f32,
+    pub(crate) acceleration_hz: f32,
     /// The maximum speed the character can reach.
     ///
     /// Default: 8 m/s
@@ -61,7 +61,7 @@ impl Default for CharacterController {
         Self {
             speed: vec2(10., 9.),
             air_speed: 0.7,
-            acceleration: 0.25,
+            acceleration_hz: 10.0,
             max_speed: 8.0,
             gravity: 20.,
             friction_hz: 4.0,
