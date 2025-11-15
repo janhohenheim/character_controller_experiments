@@ -8,10 +8,9 @@ mod quake_1;
 #[allow(dead_code)]
 mod quake_3;
 
+pub(crate) use input::*;
 pub(crate) use kcc::*;
-use quake_1 as kcc;
-
-pub(crate) use input::{Jump, Movement};
+use quake_3 as kcc;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((fixed_update_util::plugin, input::plugin, kcc::plugin))
@@ -26,10 +25,10 @@ pub(crate) enum CharacterControllerSystems {
     ApplyMovement,
 }
 
-#[derive(Component)]
-#[relationship(relationship_target = CharacterControllerForward)]
-pub(crate) struct CharacterControllerForwardOf(pub(crate) Entity);
+#[derive(Component, Clone, Copy)]
+#[relationship(relationship_target = KccRotation)]
+pub(crate) struct KccRotationOf(pub(crate) Entity);
 
-#[derive(Component)]
-#[relationship_target(relationship = CharacterControllerForwardOf)]
-pub(crate) struct CharacterControllerForward(Entity);
+#[derive(Component, Clone, Copy)]
+#[relationship_target(relationship = KccRotationOf)]
+pub(crate) struct KccRotation(Entity);

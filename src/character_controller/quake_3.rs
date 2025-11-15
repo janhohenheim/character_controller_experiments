@@ -1,14 +1,19 @@
-use avian3d::prelude::*;
+use std::sync::Arc;
+
+use avian3d::{
+    parry::shape::{Capsule, SharedShape},
+    prelude::*,
+};
 use bevy::{
     ecs::{
         lifecycle::HookContext, relationship::RelationshipSourceCollection as _,
-        system::SystemState, world::DeferredWorld,
+        world::DeferredWorld,
     },
     prelude::*,
 };
 
 use crate::character_controller::{
-    CharacterControllerForward, CharacterControllerSystems, input::AccumulatedInput,
+    CharacterControllerSystems, KccRotation, input::AccumulatedInput,
 };
 
 #[derive(Component, Clone, Reflect, Debug)]
@@ -17,101 +22,105 @@ use crate::character_controller::{
     AccumulatedInput,
     CharacterControllerState,
     RigidBody = RigidBody::Kinematic,
-    Collider = panic!("CharacterController requires a root Collider") as Collider
+    Collider = Collider::cylinder(0.7, 1.8)
 )]
 #[component(on_add=CharacterController::on_add)]
 pub(crate) struct CharacterController {
-    /// The speed at which the character can move on the ground.
-    /// X is horizontal speed, Y is vertical speed.
-    ///
-    /// Default: [10 m/s, 9 m/s]
-    pub(crate) speed: Vec2,
-    /// The speed at which the character can move in the air.
-    ///
-    /// Default: 0.7 m/s
-    pub(crate) air_speed: f32,
-    /// Idk acceleration constant
-    ///
-    /// Default: 10 Hz
-    pub(crate) acceleration_hz: f32,
-    /// The maximum total speed the character can reach on the ground while moving into the forward direction.
-    /// Note that this speed can be easily outrun by all kinds of strafing.
-    ///
-    /// Default: 8 m/s
-    pub(crate) max_speed: f32,
-    /// The gravity acceleration applied to the character.
-    ///
-    /// Default: 20 m/s²
-    pub(crate) gravity: f32,
-    /// Idk a constant for friction lol
-    ///
-    /// Default: 4 Hz
-    pub(crate) friction_hz: f32,
-    /// The minimum speed with which the character aborts movement when no longer trying to move.
-    /// The actual stopping speed can be higher than this value due to friction.
-    ///
-    /// Default: 2.5 m/s
-    pub(crate) stop_speed: f32,
-    /// The cosine of the maximum slope angle the character can climb.
-    ///
-    /// Default: 0.7 (corresponds to 45.57 degrees)
-    pub(crate) max_slope_cosine: f32,
-    /// If the y component of the velocity is above this value, the character is considered airborne regardless of ground contact.
-    /// This allows sliding up slopes if fast enough.
-    ///
-    /// Default: 4.5 m/s
-    pub(crate) airborne_speed: f32,
-    /// The filter for collisions.
-    /// Implicitly always excludes the character's own entity.
+    pub(crate) crouch_height: f32,
     pub(crate) filter: SpatialQueryFilter,
-    /// The distance kept between the character and colliders. Needed for the character to not penetrate colliders.
-    ///
-    /// Default: 0.01 m
     pub(crate) skin_width: f32,
-    /// The maximum height the character can step up.
-    ///
-    /// Default: 0.5 m
-    pub(crate) step_height: f32,
-    /// The speed at which the character jumps.
-    ///
-    /// Default: 7 m/s
-    pub(crate) jump_speed: f32,
+    pub(crate) standing_view_height: f32,
+    pub(crate) crouch_view_height: f32,
 }
 
 impl Default for CharacterController {
     fn default() -> Self {
         Self {
-            speed: vec2(9., 10.),
-            air_speed: 0.7,
-            acceleration_hz: 10.0,
-            max_speed: 8.0,
-            gravity: 20.,
-            friction_hz: 4.0,
-            stop_speed: 2.5,
-            // 45.57 degrees
-            max_slope_cosine: 0.7,
-            airborne_speed: 4.5,
-            skin_width: 0.01,
-            step_height: 0.5,
+            crouch_height: 1.3,
             filter: SpatialQueryFilter::default(),
-            jump_speed: 7.0,
+            skin_width: 0.01,
+            standing_view_height: 1.7,
+            crouch_view_height: 1.2,
         }
     }
 }
 
 impl CharacterController {
     pub fn on_add(mut world: DeferredWorld, ctx: HookContext) {
-        let Some(mut kcc) = world.get_mut::<Self>(ctx.entity) else {
+        {
+            let Some(mut kcc) = world.get_mut::<Self>(ctx.entity) else {
+                return;
+            };
+            kcc.filter.excluded_entities.add(ctx.entity);
+        }
+
+        let crouch_height = {
+            let Some(kcc) = world.get::<Self>(ctx.entity) else {
+                return;
+            };
+            kcc.crouch_height
+        };
+
+        let Some(controller) = world.entity(ctx.entity).get::<Collider>().cloned() else {
             return;
         };
-        kcc.filter.excluded_entities.add(ctx.entity);
+        let Some(mut state) = world.get_mut::<CharacterControllerState>(ctx.entity) else {
+            return;
+        };
+        state.standing_collider = controller.clone();
+        let standing_aabb = state.standing_collider.aabb(default(), Rotation::default());
+        let standing_height = standing_aabb.max.y - standing_aabb.min.y;
+
+        let frac = crouch_height / standing_height;
+
+        let mut crouching_collider = Collider::from(SharedShape(Arc::from(
+            state.standing_collider.shape().clone_dyn(),
+        )));
+
+        if crouching_collider.shape().as_cylinder().is_some() {
+            let capsule = crouching_collider
+                .shape_mut()
+                .make_mut()
+                .as_capsule_mut()
+                .unwrap();
+            let radius = capsule.radius;
+            let new_height = (crouch_height - radius).max(0.0);
+            // TODO: support non-Y-aligned capsules
+            *capsule = Capsule::new_y(new_height / 2.0, radius);
+        } else {
+            // note: well-behaved shapes like cylinders and cuboids will not actually subdivide when scaled, yay
+            crouching_collider.set_scale(Vec3::Y * frac, 16);
+        }
+        state.crouching_collider = Collider::compound(vec![(
+            Vec3::Y * (crouch_height - standing_height) / 2.0,
+            Rotation::default(),
+            crouching_collider,
+        )])
     }
 }
 
-#[derive(Component, Clone, Copy, Reflect, Default, Debug)]
+#[derive(Component, Clone, Reflect, Default, Debug)]
 #[reflect(Component)]
 pub(crate) struct CharacterControllerState {
+    pub(crate) previous_transform: Transform,
+    pub(crate) previous_velocity: Vec3,
+    #[reflect(ignore)]
+    pub(crate) standing_collider: Collider,
+    #[reflect(ignore)]
+    pub(crate) crouching_collider: Collider,
+    pub(crate) view_height: f32,
     pub(crate) grounded: Option<Entity>,
+    pub(crate) crouching: bool,
+}
+
+impl CharacterControllerState {
+    pub(crate) fn collider(&self) -> Collider {
+        if self.crouching {
+            self.crouching_collider.clone()
+        } else {
+            self.standing_collider.clone()
+        }
+    }
 }
 
 pub(super) fn plugin(app: &mut App) {
@@ -127,21 +136,19 @@ fn run_kcc(
         QueryState<(
             Entity,
             &CharacterController,
+            &CharacterControllerState,
             &AccumulatedInput,
             &LinearVelocity,
             &GlobalTransform,
-            &Collider,
             &ColliderAabb,
-            Option<&CharacterControllerForward>,
+            Option<&KccRotation>,
         )>,
     >,
-    mut transforms: Local<QueryState<&GlobalTransform>>,
     mut scratch: Local<Vec<(Transform, Vec3, Ctx)>>,
-    mut transform_helper: Local<SystemState<TransformHelper>>,
 ) {
     let dt = world.resource::<Time>().delta_secs();
     scratch.extend(kccs.iter(world).map(
-        |(entity, cfg, input, vel, transform, collider, aabb, forward)| {
+        |(entity, cfg, state, input, vel, transform, aabb, camera)| {
             let transform = transform.compute_transform();
             (
                 transform,
@@ -149,53 +156,36 @@ fn run_kcc(
                 Ctx {
                     entity,
                     cfg: cfg.clone(),
+                    state: state.clone(),
                     input: *input,
                     dt,
                     aabb: *aabb,
-                    orientation: forward
-                        .and_then(|e| {
-                            transforms
-                                .get(world, e.0)
-                                .map(|t| t.compute_transform())
-                                .ok()
-                        })
+                    orientation: camera
+                        .and_then(|e| world.entity(e.0).get::<Transform>().copied())
                         .unwrap_or(transform),
-                    collider: collider.clone(),
                 },
             )
         },
     ));
     for (transform, velocity, ctx) in scratch.drain(..) {
         let entity = ctx.entity;
-        let (transform, velocity, grounded): (Transform, Vec3, Option<Entity>) =
-            match world.run_system_cached_with(player_move, (transform, velocity, ctx)) {
+        let (transform, velocity, state): (Transform, Vec3, CharacterControllerState) =
+            match world.run_system_cached_with(move_single, (transform, velocity, ctx)) {
                 Ok(val) => val,
                 Err(err) => {
                     error!("Error running air_move system: {}", err);
                     continue;
                 }
             };
-        let global_transform = match transform_helper.get(world).compute_global_transform(entity) {
-            Ok(global_transform) => global_transform,
-            Err(err) => {
-                error!("Error computing global transform: {err}. Skipping entity.");
-                transform.into()
-            }
-        };
         **world
             .entity_mut(entity)
             .get_mut::<LinearVelocity>()
             .unwrap() = velocity;
-        world
-            .entity_mut(entity)
-            .get_mut::<CharacterControllerState>()
-            .unwrap()
-            .grounded = grounded;
-        *world.entity_mut(entity).get_mut::<Transform>().unwrap() = transform;
         *world
             .entity_mut(entity)
-            .get_mut::<GlobalTransform>()
-            .unwrap() = global_transform;
+            .get_mut::<CharacterControllerState>()
+            .unwrap() = state;
+        *world.entity_mut(entity).get_mut::<Transform>().unwrap() = transform;
     }
 }
 
@@ -204,17 +194,24 @@ struct Ctx {
     entity: Entity,
     orientation: Transform,
     cfg: CharacterController,
+    state: CharacterControllerState,
     input: AccumulatedInput,
     aabb: ColliderAabb,
-    collider: Collider,
     dt: f32,
 }
 
 #[must_use]
-fn player_move(
-    In((mut transform, mut velocity, ctx)): In<(Transform, Vec3, Ctx)>,
+fn move_single(
+    In((mut transform, mut velocity, mut ctx)): In<(Transform, Vec3, Ctx)>,
     spatial: Res<SpatialQueryPipeline>,
-) -> (Transform, Vec3, Option<Entity>) {
+) -> (Transform, Vec3, CharacterControllerState) {
+    ctx.state.previous_transform = transform;
+    ctx.state.previous_velocity = velocity;
+    // here we'd handle things like spectator, dead, noclip, etc.
+
+    ctx.state = check_duck(&ctx);
+
+    // old:
     transform = nudge_position(transform, &spatial, &ctx);
 
     let mut grounded: Option<Entity>;
@@ -227,7 +224,26 @@ fn player_move(
 
     (transform, grounded) = categorize_position(transform, velocity, &ctx, &spatial);
 
-    (transform, velocity, grounded)
+    (transform, velocity, ctx.state)
+}
+
+#[must_use]
+fn check_duck(
+    transform: Transform,
+    spatial: &SpatialQueryPipeline,
+    ctx: &Ctx,
+) -> CharacterControllerState {
+    let mut state = ctx.state.clone();
+    if ctx.input.crouched {
+        state.crouching = true;
+    } else if state.crouching {
+        // try to stand up
+        state.crouching = false;
+        let is_intersecting = is_intersecting(transform, Dir3::Y, spatial, ctx);
+        state.crouching = is_intersecting;
+    }
+
+    state
 }
 
 #[must_use]
@@ -596,6 +612,28 @@ fn sweep_check(
     };
 
     Some(hit)
+}
+
+#[must_use]
+fn is_intersecting(
+    transform: Transform,
+    direction: Dir3,
+    spatial: &SpatialQueryPipeline,
+    ctx: &Ctx,
+) -> bool {
+    let hit = spatial.cast_shape(
+        &ctx.state.collider(),
+        transform.translation,
+        transform.rotation,
+        direction,
+        &ShapeCastConfig {
+            max_distance: ctx.cfg.skin_width,
+            ignore_origin_penetration: true,
+            ..default()
+        },
+        &ctx.cfg.filter,
+    );
+    hit.is_some()
 }
 
 fn jump_button(velocity: Vec3, grounded: Option<Entity>, ctx: &Ctx) -> (Option<Entity>, Vec3) {

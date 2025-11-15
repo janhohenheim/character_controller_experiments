@@ -10,7 +10,7 @@ use bevy_trenchbroom::prelude::*;
 use bevy_trenchbroom_avian::AvianPhysicsBackend;
 
 use crate::{
-    character_controller::{CharacterController, CharacterControllerForwardOf},
+    character_controller::{CharacterController, KccRotationOf},
     user_input::PlayerInput,
 };
 
@@ -110,6 +110,6 @@ impl Player {
         world
             .commands()
             .entity(camera)
-            .insert(CharacterControllerForwardOf(ctx.entity));
+            .insert(KccRotationOf(ctx.entity));
     }
 }
