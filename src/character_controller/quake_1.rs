@@ -21,10 +21,21 @@ use crate::character_controller::{
 )]
 #[component(on_add=CharacterController::on_add)]
 pub(crate) struct CharacterController {
+    /// The speed at which the character can move on the ground.
+    /// X is horizontal speed, Y is vertical speed.
+    ///
+    /// Default: [10 m/s, 9 m/s]
     pub(crate) speed: Vec2,
+    /// The speed at which the character can move in the air.
+    ///
+    /// Default: 0.7 m/s
     pub(crate) air_speed: f32,
+    /// Idk acceleration constant
+    ///
+    /// Default: 10 Hz
     pub(crate) acceleration_hz: f32,
-    /// The maximum speed the character can reach.
+    /// The maximum total speed the character can reach on the ground while moving into the forward direction.
+    /// Note that this speed can be easily outrun by all kinds of strafing.
     ///
     /// Default: 8 m/s
     pub(crate) max_speed: f32,
@@ -32,7 +43,14 @@ pub(crate) struct CharacterController {
     ///
     /// Default: 20 m/s²
     pub(crate) gravity: f32,
+    /// Idk a constant for friction lol
+    ///
+    /// Default: 4 Hz
     pub(crate) friction_hz: f32,
+    /// The minimum speed with which the character aborts movement when no longer trying to move.
+    /// The actual stopping speed can be higher than this value due to friction.
+    ///
+    /// Default: 2.5 m/s
     pub(crate) stop_speed: f32,
     /// The cosine of the maximum slope angle the character can climb.
     ///
@@ -43,17 +61,27 @@ pub(crate) struct CharacterController {
     ///
     /// Default: 4.5 m/s
     pub(crate) airborne_speed: f32,
+    /// The filter for collisions.
     /// Implicitly always excludes the character's own entity.
     pub(crate) filter: SpatialQueryFilter,
+    /// The distance kept between the character and colliders. Needed for the character to not penetrate colliders.
+    ///
+    /// Default: 0.01 m
     pub(crate) skin_width: f32,
+    /// The maximum height the character can step up.
+    ///
+    /// Default: 0.5 m
     pub(crate) step_height: f32,
+    /// The speed at which the character jumps.
+    ///
+    /// Default: 7 m/s
     pub(crate) jump_speed: f32,
 }
 
 impl Default for CharacterController {
     fn default() -> Self {
         Self {
-            speed: vec2(10., 9.),
+            speed: vec2(9., 10.),
             air_speed: 0.7,
             acceleration_hz: 10.0,
             max_speed: 8.0,
@@ -489,6 +517,7 @@ fn categorize_position(
     let Some(trace) = trace else {
         return (transform, None);
     };
+    // Treat slopes above a certain angle as falling. This is where surf mechanics come from!!
     if trace.normal1.y < ctx.cfg.max_slope_cosine {
         return (transform, None);
     };
