@@ -55,7 +55,7 @@ impl Default for CharacterController {
         Self {
             crouch_height: 1.3,
             filter: SpatialQueryFilter::default(),
-            skin_width: 0.01,
+            skin_width: 0.05,
             standing_view_height: 1.7,
             crouch_view_height: 1.2,
             ground_distance: 0.015,
@@ -67,12 +67,12 @@ impl Default for CharacterController {
             acceleration_hz: 10.0,
             air_acceleration_hz: 1.0,
             num_bumps: 4,
-            gravity: 30.0,
+            gravity: 80.0,
             step_size: 1.0,
             max_slope_cosine: 0.7,
-            jump_speed: 9.3,
+            jump_speed: 22.0,
             crouch_scale: 0.25,
-            max_speed: 10.0,
+            max_speed: 25.0,
         }
     }
 }
@@ -302,7 +302,25 @@ fn move_single(
     };
     ground_trace(transform, velocity, &spatial, &mut state, &ctx);
 
-    (transform, velocity, state)
+    if let Ok((vel_dir, speed)) = Dir3::new_and_length(velocity) {
+        let next_pos = state.previous_transform.translation + vel_dir * speed * ctx.dt;
+        let delta = next_pos - state.previous_transform.translation;
+        if let Ok((vel_dir, dist)) = Dir3::new_and_length(delta) {
+            let new_dist = sweep_check(
+                state.previous_transform,
+                vel_dir,
+                dist,
+                &spatial,
+                &state,
+                &ctx,
+            )
+            .map(|h| h.distance)
+            .unwrap_or(dist);
+            velocity = vel_dir * new_dist / ctx.dt;
+        }
+    }
+
+    (state.previous_transform, velocity, state)
 }
 
 fn scale_inputs(ctx: &mut Ctx) {
@@ -337,11 +355,15 @@ fn walk_move(
     let movement = ctx.input.last_movement.unwrap_or_default();
     let mut forward = Vec3::from(ctx.orientation.forward());
     forward.y = 0.0;
-    forward = clip_velocity(forward, state.grounded.unwrap().normal1);
+    if let Some(grounded) = state.grounded {
+        forward = clip_velocity(forward, grounded.normal1);
+    }
     forward = forward.normalize_or_zero();
     let mut right = Vec3::from(ctx.orientation.right());
     right.y = 0.0;
-    right = clip_velocity(right, state.grounded.unwrap().normal1);
+    if let Some(grounded) = state.grounded {
+        right = clip_velocity(right, grounded.normal1);
+    }
     right = right.normalize_or_zero();
 
     let wish_vel = movement.y * forward + movement.x * right;
@@ -359,7 +381,9 @@ fn walk_move(
     velocity = accelerate(wish_dir, wish_speed, velocity, ctx.cfg.acceleration_hz, ctx);
 
     let acceleration_speed = velocity.length();
-    velocity = clip_velocity(velocity, state.grounded.unwrap().normal1);
+    if let Some(grounded) = state.grounded {
+        velocity = clip_velocity(velocity, grounded.normal1);
+    }
 
     // don't decrease velocity when going up or down a slope
     velocity = velocity.normalize_or_zero() * acceleration_speed;
@@ -419,8 +443,10 @@ fn air_move(
     // we may have a ground plane that is very steep, even
     // though we don't have a groundentity
     // slide along the steep plane
-    if state.ground_plane {
-        velocity = clip_velocity(velocity, state.grounded.unwrap().normal1);
+    if state.ground_plane
+        && let Some(grounded) = state.grounded
+    {
+        velocity = clip_velocity(velocity, grounded.normal1);
     }
 
     step_slide_move(true, transform, velocity, spatial, state, ctx)
@@ -464,7 +490,7 @@ fn step_slide_move(
     } else {
         cast_dist
     };
-    if step_size == 0.0 {
+    if is_intersecting(start_o, spatial, state, ctx) {
         // can't step up
         return (transform, velocity);
     }
@@ -480,10 +506,14 @@ fn step_slide_move(
     let cast_dist = step_size;
     let trace = sweep_check(transform, cast_dir, cast_dist, spatial, state, ctx);
     if let Some(trace) = trace {
-        transform.translation += cast_dir * trace.distance;
+        if !is_intersecting(transform, spatial, state, ctx) {
+            transform.translation += cast_dir * trace.distance;
+        }
         velocity = clip_velocity(velocity, trace.normal1);
     } else {
-        transform.translation += cast_dir * cast_dist;
+        if !is_intersecting(transform, spatial, state, ctx) {
+            transform.translation += cast_dir * cast_dist;
+        }
     }
     (transform, velocity)
 }
@@ -503,9 +533,11 @@ fn slide_move(
         end_velocity = velocity;
         end_velocity.y -= ctx.dt * ctx.cfg.gravity;
         velocity.y = (velocity.y + end_velocity.y) * 0.5;
-        if state.ground_plane {
+        if state.ground_plane
+            && let Some(grounded) = state.grounded
+        {
             // slide along the ground plane
-            velocity = clip_velocity(velocity, state.grounded.unwrap().normal1);
+            velocity = clip_velocity(velocity, grounded.normal1);
         }
     }
 
@@ -514,8 +546,10 @@ fn slide_move(
     const MAX_CLIP_PLANES: usize = 5;
     let mut planes = [Vec3::ZERO; MAX_CLIP_PLANES];
     // never turn against the ground plane
-    let mut num_planes = if state.ground_plane {
-        planes[0] = state.grounded.unwrap().normal1;
+    let mut num_planes = if state.ground_plane
+        && let Some(grounded) = state.grounded
+    {
+        planes[0] = grounded.normal1;
         1
     } else {
         0
@@ -533,18 +567,18 @@ fn slide_move(
 
         // see if we can make it there
         let trace = sweep_check(transform, cast_dir, cast_len, spatial, state, ctx);
+        if is_intersecting(transform, spatial, state, ctx) {
+            // entity is completely trapped in another solid
+            // don't build up falling damage, but allow sideways acceleration
+            velocity.y = 0.0;
+            return (transform, velocity, true);
+        }
         let Some(trace) = trace else {
             // moved the entire distance
             transform.translation += cast_dir * cast_len;
             break;
         };
         transform.translation += cast_dir * trace.distance;
-        if trace.distance == 0.0 {
-            // entity is completely trapped in another solid
-            // don't build up falling damage, but allow sideways acceleration
-            velocity.y = 0.0;
-            return (transform, velocity, true);
-        }
 
         // trigger touch event here
         time_left -= time_left * trace.distance / cast_len;
@@ -712,7 +746,7 @@ fn check_duck(
     } else if state.crouching {
         // try to stand up
         state.crouching = false;
-        let is_intersecting = is_intersecting(transform, Dir3::Y, spatial, state, ctx);
+        let is_intersecting = is_intersecting(transform, spatial, state, ctx);
         state.crouching = is_intersecting;
     }
 }
@@ -726,27 +760,27 @@ fn ground_trace(
 ) {
     let cast_dir = Dir3::NEG_Y;
     let cast_len = ctx.cfg.ground_distance;
-    let trace = sweep_check(transform, cast_dir, cast_len, spatial, state, ctx);
+    let mut trace = sweep_check(transform, cast_dir, cast_len, spatial, state, ctx);
     state.previous_grounded = state.grounded;
     state.grounded = trace;
 
+    // do something corrective if the trace starts in a solid...
+    if is_intersecting(transform, spatial, state, ctx) {
+        if let Some(correct_trace) = correct_all_solid(transform, spatial, state, ctx) {
+            trace = Some(correct_trace);
+        } else {
+            return;
+        }
+    }
+
     // if the trace didn't hit anything, we are in free fall
-    let Some(mut trace) = trace else {
+    let Some(trace) = trace else {
         ground_trace_missed();
         state.grounded_entity = None;
         state.ground_plane = false;
         state.walking = false;
         return;
     };
-
-    // do something corrective if the trace starts in a solid...
-    if trace.distance == 0.0 {
-        if let Some(correct_trace) = correct_all_solid(transform, spatial, state, ctx) {
-            trace = correct_trace
-        } else {
-            return;
-        }
-    }
 
     // check if getting thrown off the ground
     if velocity.y > 0.0 && velocity.dot(trace.normal1) > ctx.cfg.jump_detection_speed {
@@ -803,19 +837,7 @@ fn correct_all_solid(
             for y in -1..=1 {
                 let offset = Vec3::new(x as f32, y as f32, z as f32) * 0.05;
                 transform.translation = base.translation + offset;
-                let mut free = true;
-                spatial.shape_intersections_callback(
-                    state.collider(),
-                    transform.translation,
-                    transform.rotation,
-                    &ctx.cfg.filter,
-                    |_| {
-                        free = false;
-                        // stop search
-                        false
-                    },
-                );
-                if free {
+                if !is_intersecting(transform, spatial, state, ctx) {
                     let trace = sweep_check(
                         transform,
                         Dir3::NEG_Y,
@@ -854,7 +876,6 @@ fn sweep_check(
         direction,
         &ShapeCastConfig {
             max_distance,
-            ignore_origin_penetration: true,
             ..default()
         },
         &ctx.cfg.filter,
@@ -870,6 +891,7 @@ fn sweep_check(
         let hypothenuse = target_distance_to_hit / angle_between_hit_normal_and_direction.cos();
         hit.distance - hypothenuse
     };
+    hit.distance = hit.distance.max(0.0);
 
     Some(hit)
 }
@@ -877,24 +899,22 @@ fn sweep_check(
 #[must_use]
 fn is_intersecting(
     transform: Transform,
-    direction: Dir3,
     spatial: &SpatialQueryPipeline,
     state: &CharacterControllerState,
     ctx: &Ctx,
 ) -> bool {
-    let hit = spatial.cast_shape(
+    let mut intersects = false;
+    spatial.shape_intersections_callback(
         state.collider(),
         transform.translation,
         transform.rotation,
-        direction,
-        &ShapeCastConfig {
-            max_distance: ctx.cfg.skin_width,
-            ignore_origin_penetration: true,
-            ..default()
-        },
         &ctx.cfg.filter,
+        |_| {
+            intersects = true;
+            false
+        },
     );
-    hit.is_some()
+    intersects
 }
 
 #[must_use]
