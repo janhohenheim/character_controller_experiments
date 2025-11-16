@@ -55,7 +55,7 @@ impl Default for CharacterController {
         Self {
             crouch_height: 1.3,
             filter: SpatialQueryFilter::default(),
-            skin_width: 0.05,
+            skin_width: 0.01,
             standing_view_height: 1.7,
             crouch_view_height: 1.2,
             ground_distance: 0.015,
@@ -506,14 +506,10 @@ fn step_slide_move(
     let cast_dist = step_size;
     let trace = sweep_check(transform, cast_dir, cast_dist, spatial, state, ctx);
     if let Some(trace) = trace {
-        if !is_intersecting(transform, spatial, state, ctx) {
-            transform.translation += cast_dir * trace.distance;
-        }
+        transform.translation += cast_dir * trace.distance;
         velocity = clip_velocity(velocity, trace.normal1);
     } else {
-        if !is_intersecting(transform, spatial, state, ctx) {
-            transform.translation += cast_dir * cast_dist;
-        }
+        transform.translation += cast_dir * cast_dist;
     }
     (transform, velocity)
 }
@@ -567,17 +563,18 @@ fn slide_move(
 
         // see if we can make it there
         let trace = sweep_check(transform, cast_dir, cast_len, spatial, state, ctx);
-        if is_intersecting(transform, spatial, state, ctx) {
-            // entity is completely trapped in another solid
-            // don't build up falling damage, but allow sideways acceleration
-            velocity.y = 0.0;
-            return (transform, velocity, true);
-        }
+
         let Some(trace) = trace else {
             // moved the entire distance
             transform.translation += cast_dir * cast_len;
             break;
         };
+        if trace.distance == 0.0 {
+            // entity is completely trapped in another solid
+            // don't build up falling damage, but allow sideways acceleration
+            velocity.y = 0.0;
+            return (transform, velocity, true);
+        }
         transform.translation += cast_dir * trace.distance;
 
         // trigger touch event here
@@ -746,7 +743,8 @@ fn check_duck(
     } else if state.crouching {
         // try to stand up
         state.crouching = false;
-        let is_intersecting = is_intersecting(transform, spatial, state, ctx);
+        let is_intersecting =
+            sweep_check(transform, Dir3::Y, ctx.cfg.skin_width, spatial, state, ctx).is_some();
         state.crouching = is_intersecting;
     }
 }
@@ -760,27 +758,27 @@ fn ground_trace(
 ) {
     let cast_dir = Dir3::NEG_Y;
     let cast_len = ctx.cfg.ground_distance;
-    let mut trace = sweep_check(transform, cast_dir, cast_len, spatial, state, ctx);
+    let trace = sweep_check(transform, cast_dir, cast_len, spatial, state, ctx);
     state.previous_grounded = state.grounded;
     state.grounded = trace;
 
-    // do something corrective if the trace starts in a solid...
-    if is_intersecting(transform, spatial, state, ctx) {
-        if let Some(correct_trace) = correct_all_solid(transform, spatial, state, ctx) {
-            trace = Some(correct_trace);
-        } else {
-            return;
-        }
-    }
-
     // if the trace didn't hit anything, we are in free fall
-    let Some(trace) = trace else {
+    let Some(mut trace) = trace else {
         ground_trace_missed();
         state.grounded_entity = None;
         state.ground_plane = false;
         state.walking = false;
         return;
     };
+
+    // do something corrective if the trace starts in a solid...
+    if trace.distance == 0.0 {
+        if let Some(correct_trace) = correct_all_solid(transform, spatial, state, ctx) {
+            trace = correct_trace;
+        } else {
+            return;
+        }
+    }
 
     // check if getting thrown off the ground
     if velocity.y > 0.0 && velocity.dot(trace.normal1) > ctx.cfg.jump_detection_speed {
