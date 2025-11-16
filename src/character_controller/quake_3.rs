@@ -331,8 +331,16 @@ fn walk_move(
     let scale = cmd_scale(ctx);
 
     let movement = ctx.input.last_movement.unwrap_or_default();
-    let mut wish_vel =
-        movement.y * ctx.orientation.forward() + movement.x * ctx.orientation.right();
+    let mut forward = Vec3::from(ctx.orientation.forward());
+    forward.y = 0.0;
+    forward = clip_velocity(forward, state.grounded.unwrap().normal1);
+    forward = forward.normalize_or_zero();
+    let mut right = Vec3::from(ctx.orientation.right());
+    right.y = 0.0;
+    right = clip_velocity(right, state.grounded.unwrap().normal1);
+    right = right.normalize_or_zero();
+
+    let mut wish_vel = movement.y * forward + movement.x * right;
     wish_vel.y = 0.0;
     let (wish_dir, mut wish_speed) = Dir3::new_and_length(wish_vel).unwrap_or((Dir3::NEG_Z, 0.0));
     wish_speed *= scale;
@@ -381,8 +389,14 @@ fn air_move(
     let scale = cmd_scale(ctx);
 
     let movement = ctx.input.last_movement.unwrap_or_default();
-    let mut wish_vel =
-        movement.y * ctx.orientation.forward() + movement.x * ctx.orientation.right();
+    let mut forward = Vec3::from(ctx.orientation.forward());
+    forward.y = 0.0;
+    forward = forward.normalize_or_zero();
+    let mut right = Vec3::from(ctx.orientation.right());
+    right.y = 0.0;
+    right = right.normalize_or_zero();
+
+    let mut wish_vel = movement.y * forward + movement.x * right;
     wish_vel.y = 0.0;
     let (wish_dir, mut wish_speed) = Dir3::new_and_length(wish_vel).unwrap_or((Dir3::NEG_Z, 0.0));
     wish_speed *= scale;
@@ -497,7 +511,7 @@ fn slide_move(
     };
 
     // never turn against original velocity
-    planes[num_planes] = velocity;
+    planes[num_planes] = velocity.normalize_or_zero();
     num_planes += 1;
 
     let mut bump_count = 0;
