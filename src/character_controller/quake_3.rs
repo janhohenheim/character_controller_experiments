@@ -254,11 +254,18 @@ fn run_kcc(
             .entity_mut(entity)
             .get_mut::<LinearVelocity>()
             .unwrap() = velocity;
+        *world.entity_mut(entity).get_mut::<Transform>().unwrap() = transform;
+        {
+            let mut entity = world.entity_mut(entity);
+            let mut current_collider = entity.get_mut::<Collider>().unwrap();
+            if !Arc::ptr_eq(&current_collider.shape().0, &state.collider().shape().0) {
+                *current_collider = state.collider().clone();
+            }
+        }
         *world
             .entity_mut(entity)
             .get_mut::<CharacterControllerState>()
             .unwrap() = state;
-        *world.entity_mut(entity).get_mut::<Transform>().unwrap() = transform;
     }
 }
 
