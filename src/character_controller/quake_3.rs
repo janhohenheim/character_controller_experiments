@@ -207,49 +207,44 @@ fn run_kcc(
             &CharacterController,
             &CharacterControllerState,
             &AccumulatedInput,
-            &LinearVelocity,
             &GlobalTransform,
             &ColliderAabb,
             Option<&CharacterControllerCamera>,
         )>,
     >,
-    mut scratch: Local<Vec<(Transform, Vec3, CharacterControllerState, Ctx)>>,
+    mut scratch: Local<Vec<(Transform, CharacterControllerState, Ctx)>>,
 ) {
     let dt = world.resource::<Time>().delta_secs();
-    scratch.extend(kccs.iter(world).map(
-        |(entity, cfg, state, input, vel, transform, aabb, camera)| {
-            let transform = transform.compute_transform();
-            (
-                transform,
-                vel.0,
-                state.clone(),
-                Ctx {
-                    entity,
-                    cfg: cfg.clone(),
-                    input: *input,
-                    dt,
-                    aabb: *aabb,
-                    orientation: camera
-                        .and_then(|e| world.entity(e.0).get::<Transform>().copied())
-                        .unwrap_or(transform),
-                },
-            )
-        },
-    ));
-    for (transform, velocity, state, ctx) in scratch.drain(..) {
+    scratch.extend(
+        kccs.iter(world)
+            .map(|(entity, cfg, state, input, transform, aabb, camera)| {
+                let transform = transform.compute_transform();
+                (
+                    transform,
+                    state.clone(),
+                    Ctx {
+                        entity,
+                        cfg: cfg.clone(),
+                        input: *input,
+                        dt,
+                        aabb: *aabb,
+                        orientation: camera
+                            .and_then(|e| world.entity(e.0).get::<Transform>().copied())
+                            .unwrap_or(transform),
+                    },
+                )
+            }),
+    );
+    for (transform, state, ctx) in scratch.drain(..) {
         let entity = ctx.entity;
-        let (transform, velocity, state): (Transform, Vec3, CharacterControllerState) =
-            match world.run_system_cached_with(move_single, (transform, velocity, state, ctx)) {
+        let (transform, state): (Transform, CharacterControllerState) =
+            match world.run_system_cached_with(move_single, (transform, state, ctx)) {
                 Ok(val) => val,
                 Err(err) => {
                     error!("Error running move_single system: {}", err);
                     continue;
                 }
             };
-        **world
-            .entity_mut(entity)
-            .get_mut::<LinearVelocity>()
-            .unwrap() = velocity;
         *world.entity_mut(entity).get_mut::<Transform>().unwrap() = transform;
         {
             let mut entity = world.entity_mut(entity);
@@ -277,15 +272,10 @@ struct Ctx {
 
 #[must_use]
 fn move_single(
-    In((mut transform, mut velocity, mut state, mut ctx)): In<(
-        Transform,
-        Vec3,
-        CharacterControllerState,
-        Ctx,
-    )>,
+    In((mut transform, mut state, mut ctx)): In<(Transform, CharacterControllerState, Ctx)>,
     spatial: Res<SpatialQueryPipeline>,
-) -> (Transform, Vec3, CharacterControllerState) {
-    velocity = state.velocity;
+) -> (Transform, CharacterControllerState) {
+    let mut velocity = state.velocity;
     scale_inputs(&mut ctx);
     // here we'd handle things like spectator, dead, noclip, etc.
 
@@ -301,7 +291,7 @@ fn move_single(
     ground_trace(transform, velocity, &spatial, &mut state, &ctx);
     state.velocity = velocity;
 
-    (transform, Vec3::ZERO, state)
+    (transform, state)
 }
 
 fn scale_inputs(ctx: &mut Ctx) {
