@@ -327,11 +327,15 @@ fn walk_move(
     let movement = ctx.input.last_movement.unwrap_or_default();
     let mut forward = Vec3::from(ctx.orientation.forward());
     forward.y = 0.0;
-    forward = clip_velocity(forward, state.grounded.unwrap().normal1);
+    if let Some(grounded) = state.grounded {
+        forward = clip_velocity(forward, grounded.normal1);
+    }
     forward = forward.normalize_or_zero();
     let mut right = Vec3::from(ctx.orientation.right());
     right.y = 0.0;
-    right = clip_velocity(right, state.grounded.unwrap().normal1);
+    if let Some(grounded) = state.grounded {
+        right = clip_velocity(right, grounded.normal1);
+    }
     right = right.normalize_or_zero();
 
     let wish_vel = movement.y * forward + movement.x * right;
@@ -349,7 +353,10 @@ fn walk_move(
     velocity = accelerate(wish_dir, wish_speed, velocity, ctx.cfg.acceleration_hz, ctx);
 
     let acceleration_speed = velocity.length();
-    velocity = clip_velocity(velocity, state.grounded.unwrap().normal1);
+
+    if let Some(grounded) = state.grounded {
+        velocity = clip_velocity(velocity, grounded.normal1);
+    }
 
     // don't decrease velocity when going up or down a slope
     velocity = velocity.normalize_or_zero() * acceleration_speed;
@@ -409,8 +416,10 @@ fn air_move(
     // we may have a ground plane that is very steep, even
     // though we don't have a groundentity
     // slide along the steep plane
-    if state.ground_plane {
-        velocity = clip_velocity(velocity, state.grounded.unwrap().normal1);
+    if state.ground_plane
+        && let Some(grounded) = state.grounded
+    {
+        velocity = clip_velocity(velocity, grounded.normal1);
     }
 
     step_slide_move(true, transform, velocity, spatial, state, ctx)
@@ -493,9 +502,11 @@ fn slide_move(
         end_velocity = velocity;
         end_velocity.y -= ctx.dt * ctx.cfg.gravity;
         velocity.y = (velocity.y + end_velocity.y) * 0.5;
-        if state.ground_plane {
+        if state.ground_plane
+            && let Some(grounded) = state.grounded
+        {
             // slide along the ground plane
-            velocity = clip_velocity(velocity, state.grounded.unwrap().normal1);
+            velocity = clip_velocity(velocity, grounded.normal1);
         }
     }
 
@@ -504,8 +515,10 @@ fn slide_move(
     const MAX_CLIP_PLANES: usize = 5;
     let mut planes = [Vec3::ZERO; MAX_CLIP_PLANES];
     // never turn against the ground plane
-    let mut num_planes = if state.ground_plane {
-        planes[0] = state.grounded.unwrap().normal1;
+    let mut num_planes = if state.ground_plane
+        && let Some(grounded) = state.grounded
+    {
+        planes[0] = grounded.normal1;
         1
     } else {
         0
@@ -854,15 +867,11 @@ fn sweep_check(
     let n = hit.normal1;
     let dir: Vec3 = direction.into();
 
-    if dir.dot(n) > 0.0 {
-        hit.distance = 0.0;
-        hit.normal1 = Vec3::ZERO;
-    } else {
-        let angle_between_hit_normal_and_direction = n.angle_between(-dir);
-        let target_distance_to_hit = ctx.cfg.skin_width;
-        let hypothenuse = target_distance_to_hit / angle_between_hit_normal_and_direction.cos();
-        hit.distance -= hypothenuse
-    };
+    if n.dot(-dir).abs() > 0.001 {
+        let hypothenuse = ctx.cfg.skin_width / n.dot(-dir);
+        hit.distance -= hypothenuse;
+    }
+
     Some(hit)
 }
 
