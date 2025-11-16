@@ -107,7 +107,7 @@ impl CharacterController {
             state.standing_collider.shape().clone_dyn(),
         )));
 
-        if crouching_collider.shape().as_cylinder().is_some() {
+        if crouching_collider.shape().as_capsule().is_some() {
             let capsule = crouching_collider
                 .shape_mut()
                 .make_mut()
