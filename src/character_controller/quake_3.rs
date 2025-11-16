@@ -340,8 +340,10 @@ fn walk_move(
     right = clip_velocity(right, state.grounded.unwrap().normal1);
     right = right.normalize_or_zero();
 
-    let mut wish_vel = movement.y * forward + movement.x * right;
-    wish_vel.y = 0.0;
+    let wish_vel = movement.y * forward + movement.x * right;
+    // when going up or down slopes the wish velocity should not be zero
+    // So even if it seems like a good idea, do not do the following:
+    // wish_vel.y = 0.0;
     let (wish_dir, mut wish_speed) = Dir3::new_and_length(wish_vel).unwrap_or((Dir3::NEG_Z, 0.0));
     wish_speed *= scale;
 
