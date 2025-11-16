@@ -9,6 +9,7 @@ use bevy::{
         lifecycle::HookContext, relationship::RelationshipSourceCollection as _,
         world::DeferredWorld,
     },
+    math::VectorSpace,
     prelude::*,
 };
 
@@ -844,6 +845,7 @@ fn sweep_check(
         &ShapeCastConfig {
             max_distance,
             ignore_origin_penetration: true,
+            compute_contact_on_penetration: false,
             ..default()
         },
         &ctx.cfg.filter,
@@ -851,15 +853,16 @@ fn sweep_check(
 
     let n = hit.normal1;
     let dir: Vec3 = direction.into();
-    hit.distance = if n.dot(dir) < 0.0 {
-        hit.distance - ctx.cfg.skin_width
+
+    if dir.dot(n) > 0.0 {
+        hit.distance = 0.0;
+        hit.normal1 = Vec3::ZERO;
     } else {
         let angle_between_hit_normal_and_direction = n.angle_between(-dir);
         let target_distance_to_hit = ctx.cfg.skin_width;
         let hypothenuse = target_distance_to_hit / angle_between_hit_normal_and_direction.cos();
-        hit.distance - hypothenuse
+        hit.distance -= hypothenuse
     };
-
     Some(hit)
 }
 
@@ -878,7 +881,7 @@ fn is_intersecting(
         direction,
         &ShapeCastConfig {
             max_distance: ctx.cfg.skin_width,
-            ignore_origin_penetration: true,
+            compute_contact_on_penetration: false,
             ..default()
         },
         &ctx.cfg.filter,
