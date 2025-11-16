@@ -56,7 +56,7 @@ impl Default for CharacterController {
         Self {
             crouch_height: 1.3,
             filter: SpatialQueryFilter::default(),
-            skin_width: 0.01,
+            skin_width: 0.001,
             standing_view_height: 1.7,
             crouch_view_height: 1.2,
             ground_distance: 0.015,
@@ -561,7 +561,7 @@ fn slide_move(
         let mut i = 0;
         while i < num_planes {
             if trace.normal1.dot(planes[i]) > 0.99 {
-                velocity += trace.normal1 * 0.05;
+                velocity += trace.normal1 * ctx.cfg.skin_width;
                 break;
             }
             i += 1;
