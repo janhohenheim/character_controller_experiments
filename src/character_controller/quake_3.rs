@@ -41,6 +41,7 @@ pub(crate) struct CharacterController {
     pub(crate) stop_speed: f32,
     pub(crate) friction_hz: f32,
     pub(crate) speed: Vec2,
+    pub(crate) air_acceleration_hz: f32,
 }
 
 impl Default for CharacterController {
@@ -57,6 +58,7 @@ impl Default for CharacterController {
             stop_speed: 5.0,
             friction_hz: 6.0,
             speed: Vec2::new(7.0, 8.0),
+            air_acceleration_hz: 1.0,
         }
     }
 }
@@ -129,6 +131,7 @@ pub(crate) struct CharacterControllerState {
     pub(crate) grounded: Option<ShapeHitData>,
     pub(crate) crouching: bool,
     pub(crate) ground_plane: bool,
+    pub(crate) grounded_entity: Option<Entity>,
     pub(crate) walking: bool,
 }
 
@@ -301,18 +304,54 @@ fn air_move(
     let (wish_dir, mut wish_speed) = Dir3::new_and_length(wish_vel).unwrap_or((Dir3::NEG_Z, 0.0));
 
     // not on ground, so little effect on velocity
-    accelerate();
+    velocity = accelerate(
+        wish_dir,
+        wish_speed,
+        velocity,
+        ctx.cfg.air_acceleration_hz,
+        ctx,
+    );
 
     // we may have a ground plane that is very steep, even
     // though we don't have a groundentity
     // slide along the steep plane
     if state.ground_plane {
-        clip_velocity();
+        velocity = clip_velocity(velocity, state.grounded.unwrap().normal1);
     }
 
     step_slide_move();
 
     (transform, velocity)
+}
+
+#[must_use]
+fn clip_velocity(velocity: Vec3, normal: Vec3) -> Vec3 {
+    const OVERCLIP: f32 = 1.001;
+    let backoff = velocity.dot(normal);
+    let backoff = if backoff < 0.0 {
+        backoff * OVERCLIP
+    } else {
+        backoff / OVERCLIP
+    };
+    velocity - normal * backoff
+}
+
+#[must_use]
+fn accelerate(
+    wish_dir: Dir3,
+    wish_speed: f32,
+    velocity: Vec3,
+    acceleration_hz: f32,
+    ctx: &Ctx,
+) -> Vec3 {
+    let current_speed = velocity.dot(wish_dir.into());
+    let add_speed = wish_speed - current_speed;
+    if add_speed <= 0.0 {
+        return velocity;
+    }
+
+    let accel_speed = f32::min(acceleration_hz * ctx.dt * wish_speed, add_speed);
+    velocity + accel_speed * wish_dir
 }
 
 fn friction(mut velocity: Vec3, state: &CharacterControllerState, ctx: &Ctx) -> Vec3 {
@@ -370,6 +409,7 @@ fn ground_trace(
     // if the trace didn't hit anything, we are in free fall
     let Some(mut trace) = trace else {
         ground_trace_missed();
+        state.grounded_entity = None;
         state.ground_plane = false;
         state.walking = false;
         return;
@@ -387,7 +427,7 @@ fn ground_trace(
     // check if getting thrown off the ground
     if velocity.y > 0.0 && velocity.dot(trace.normal1) > ctx.cfg.jump_detection_speed {
         // here we could trigger a jump start event
-        state.grounded = None;
+        state.grounded_entity = None;
         state.ground_plane = false;
         state.walking = false;
         return;
@@ -395,7 +435,7 @@ fn ground_trace(
 
     // slopes that are too steep will not be considered onground
     if trace.normal1.y < ctx.cfg.min_walk_cos {
-        state.grounded = None;
+        state.grounded_entity = None;
         state.ground_plane = true;
         state.walking = false;
         return;
@@ -403,10 +443,11 @@ fn ground_trace(
 
     state.ground_plane = true;
     state.walking = true;
-    if state.previous_grounded.is_none() {
+    if state.grounded_entity.is_none() {
         // trigger landing event
         crash_land()
     }
+    state.grounded_entity = Some(trace.entity);
 }
 
 fn ground_trace_missed() {
@@ -465,7 +506,7 @@ fn correct_all_solid(
             }
         }
     }
-    state.grounded = None;
+    state.grounded_entity = None;
     state.walking = false;
     state.ground_plane = false;
     None
