@@ -45,6 +45,7 @@ pub(crate) struct CharacterController {
     pub(crate) air_acceleration_hz: f32,
     pub(crate) num_bumps: usize,
     pub(crate) gravity: f32,
+    pub(crate) step_size: f32,
 }
 
 impl Default for CharacterController {
@@ -64,6 +65,7 @@ impl Default for CharacterController {
             air_acceleration_hz: 1.0,
             num_bumps: 4,
             gravity: 20.0,
+            step_size: 1.0,
         }
     }
 }
@@ -337,13 +339,21 @@ fn step_slide_move(
     state: &CharacterControllerState,
     ctx: &Ctx,
 ) -> (Transform, Vec3) {
-    let start_o = transform.translation;
+    let start_o = transform;
     let start_v = velocity;
 
-    if slide_move(gravity, transform, velocity, spatial, state, ctx) == false {
+    let clipped: bool;
+    (transform, velocity, clipped) = slide_move(gravity, transform, velocity, spatial, state, ctx);
+    if !clipped {
         // we got exactly where we wanted to go first try
         return (transform, velocity);
     }
+    let cast_dir = Dir3::NEG_Y;
+    let cast_dist = ctx.cfg.step_size;
+    let trace = sweep_check(start_o, cast_dir, cast_dist, spatial, state, ctx);
+
+    // never step up when you still have up velocity
+    if velocity.y > 0.0 || trace.is_none() || trace.is_some_and(|t| t.normal1.dot(Vec3::Y))
 
     (transform, velocity)
 }
