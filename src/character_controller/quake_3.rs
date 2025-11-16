@@ -175,23 +175,20 @@ fn sync_camera_transform(
         (&mut Transform, &CharacterControllerCameraOf),
         (Without<CharacterControllerState>,),
     >,
-    kccs: Query<(
-        &Transform,
-        &CharacterController,
-        &Collider,
-        &CharacterControllerState,
-    )>,
+    kccs: Query<(&Transform, &CharacterController, &CharacterControllerState)>,
 ) {
     // TODO: DIY TransformHelper to use current global transform.
     // Can't use GlobalTransform directly: outdated -> jitter
     // Can't use TransformHelper directly: access conflict with &mut Transform
     for (mut camera_transform, camera_of) in cameras.iter_mut() {
-        if let Ok((kcc_transform, cfg, collider, state)) = kccs.get(camera_of.0) {
-            let height = if state.crouching {
-                cfg.crouch_height
-            } else {
-                collider.aabb(default(), Rotation::default()).size().y
-            };
+        if let Ok((kcc_transform, cfg, state)) = kccs.get(camera_of.0) {
+            let height = state
+                // changing the collider does not change the transform, so to get the correct position for the feet,
+                // we need to use the collider we spawned with.
+                .standing_collider
+                .aabb(Vec3::default(), Rotation::default())
+                .size()
+                .y;
             let view_height = if state.crouching {
                 cfg.crouch_view_height
             } else {
