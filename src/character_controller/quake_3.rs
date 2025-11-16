@@ -446,8 +446,8 @@ fn step_slide_move(
 
     // never step up when you still have up velocity
     if velocity.y > 0.0
-        || trace.is_none()
-        || trace.is_some_and(|t| t.normal1.dot(Vec3::Y) < ctx.cfg.max_slope_cosine)
+        && (trace.is_none()
+            || trace.is_some_and(|t| t.normal1.dot(Vec3::Y) < ctx.cfg.max_slope_cosine))
     {
         return (transform, velocity);
     }
