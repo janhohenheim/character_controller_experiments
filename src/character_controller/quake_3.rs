@@ -472,6 +472,7 @@ fn step_slide_move(
     let cast_dist = step_size;
     let trace = sweep_check(transform, cast_dir, cast_dist, spatial, state, ctx);
     if let Some(trace) = trace {
+        transform.translation += cast_dir * trace.distance;
         velocity = clip_velocity(velocity, trace.normal1);
     } else {
         transform.translation += cast_dir * cast_dist;
