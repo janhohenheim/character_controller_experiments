@@ -122,7 +122,7 @@ impl CharacterController {
             *capsule = Capsule::new_y(new_height / 2.0, radius);
         } else {
             // note: well-behaved shapes like cylinders and cuboids will not actually subdivide when scaled, yay
-            crouching_collider.set_scale(Vec3::Y * frac, 16);
+            crouching_collider.set_scale(vec3(1.0, frac, 1.0), 16);
         }
         state.crouching_collider = Collider::compound(vec![(
             Vec3::Y * (crouch_height - standing_height) / 2.0,
