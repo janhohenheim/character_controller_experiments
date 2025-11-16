@@ -60,7 +60,7 @@ impl Default for CharacterController {
             crouch_view_height: 1.2,
             ground_distance: 0.015,
             jump_detection_speed: 0.5,
-            min_walk_cos: 0.7,
+            min_walk_cos: 0.766,
             stop_speed: 5.0,
             friction_hz: 6.0,
             walk_scale: 0.5,
