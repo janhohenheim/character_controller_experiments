@@ -1,4 +1,4 @@
-use avian3d::prelude::{ColliderAabb, LinearVelocity};
+use avian3d::prelude::ColliderAabb;
 use bevy::prelude::*;
 
 use crate::character_controller::{CharacterController, CharacterControllerState};
