@@ -15,13 +15,15 @@ fn setup(mut commands: Commands) {
 fn update_debug_text(
     mut text: Single<&mut Text, With<DebugText>>,
     kcc: Single<&LinearVelocity, With<CharacterController>>,
+    camera: Single<&Transform, With<Camera>>,
 ) {
     let velocity = kcc.into_inner();
     let velocity = velocity.0;
     let speed = velocity.length();
+    let camera_position = camera.translation;
     text.0 = format!(
-        "Speed: {speed:.3}\nVelocity: [{:.3}, {:.3}, {:.3}]",
-        velocity.x, velocity.y, velocity.z
+        "Speed: {speed:.3}\nVelocity: [{:.3}, {:.3}, {:.3}]\nCamera Position: [{:.3}, {:.3}, {:.3}]",
+        velocity.x, velocity.y, velocity.z, camera_position.x, camera_position.y, camera_position.z
     );
 }
 

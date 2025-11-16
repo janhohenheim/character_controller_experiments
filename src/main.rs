@@ -99,8 +99,7 @@ impl Player {
             PlayerInput,
             CharacterController::default(),
             RigidBody::Kinematic,
-            TransformInterpolation,
-            Collider::cylinder(0.25, 1.8),
+            Collider::cylinder(0.7, 1.8),
         ));
         let camera = world
             .try_query_filtered::<Entity, With<Camera3d>>()

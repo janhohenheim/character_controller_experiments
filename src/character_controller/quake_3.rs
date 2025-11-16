@@ -22,6 +22,7 @@ use crate::character_controller::{
 #[require(
     AccumulatedInput,
     CharacterControllerState,
+    TranslationInterpolation,
     RigidBody = RigidBody::Kinematic,
     Collider = Collider::cylinder(0.7, 1.8)
 )]
@@ -61,14 +62,14 @@ impl Default for CharacterController {
             min_walk_cos: 0.7,
             stop_speed: 5.0,
             friction_hz: 6.0,
-            speed: Vec2::new(7.0, 9.0),
+            speed: Vec2::new(8.0, 10.0),
             acceleration_hz: 10.0,
             air_acceleration_hz: 1.0,
             num_bumps: 4,
-            gravity: 20.0,
+            gravity: 30.0,
             step_size: 1.0,
             max_slope_cosine: 0.7,
-            jump_speed: 8.0,
+            jump_speed: 9.3,
             crouch_scale: 0.25,
         }
     }
