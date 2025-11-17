@@ -4,7 +4,7 @@ use bevy::{
 };
 use bevy_enhanced_input::prelude::*;
 
-use crate::character_controller::{Crouch, Jump, Movement, Walk};
+use crate::character_controller::{Crouch, Jump, Movement};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_input_context::<PlayerInput>();
@@ -40,10 +40,6 @@ impl PlayerInput {
                 (
                     Action::<Crouch>::new(),
                     bindings![KeyCode::ControlLeft, GamepadButton::LeftTrigger],
-                ),
-                (
-                    Action::<Walk>::new(),
-                    bindings![KeyCode::ShiftLeft, GamepadButton::RightTrigger],
                 ),
                 (Action::<Rotate>::new(),Negate::all(), Scale::splat(0.1),
                     Bindings::spawn((Spawn(Binding::mouse_motion()), Axial::right_stick()))),

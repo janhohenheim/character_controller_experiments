@@ -37,7 +37,6 @@ pub(crate) struct CharacterController {
     pub(crate) min_walk_cos: f32,
     pub(crate) stop_speed: f32,
     pub(crate) friction_hz: f32,
-    pub(crate) walk_scale: f32,
     pub(crate) acceleration_hz: f32,
     pub(crate) air_acceleration_hz: f32,
     pub(crate) num_bumps: usize,
@@ -62,7 +61,6 @@ impl Default for CharacterController {
             min_walk_cos: 0.766,
             stop_speed: 5.0,
             friction_hz: 6.0,
-            walk_scale: 0.5,
             acceleration_hz: 12.0,
             air_acceleration_hz: 1.0,
             num_bumps: 4,
@@ -237,11 +235,10 @@ struct Ctx {
 
 #[must_use]
 fn move_single(
-    In((mut transform, mut state, mut ctx)): In<(Transform, CharacterControllerState, Ctx)>,
+    In((mut transform, mut state, ctx)): In<(Transform, CharacterControllerState, Ctx)>,
     spatial: Res<SpatialQueryPipeline>,
 ) -> (Transform, CharacterControllerState) {
     let mut velocity = state.velocity;
-    scale_inputs(&mut ctx);
     // here we'd handle things like spectator, dead, noclip, etc.
 
     check_duck(transform, &spatial, &mut state, &ctx);
@@ -257,18 +254,6 @@ fn move_single(
     state.velocity = velocity;
 
     (transform, state)
-}
-
-fn scale_inputs(ctx: &mut Ctx) {
-    let Some(last_movement) = ctx.input.last_movement.as_mut() else {
-        return;
-    };
-    let speed = if ctx.input.walked {
-        ctx.cfg.walk_scale
-    } else {
-        1.0
-    };
-    *last_movement *= speed;
 }
 
 #[must_use]

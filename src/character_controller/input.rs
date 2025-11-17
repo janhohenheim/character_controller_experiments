@@ -5,7 +5,6 @@ pub(super) fn plugin(app: &mut App) {
     app.add_observer(apply_movement)
         .add_observer(apply_jump)
         .add_observer(apply_crouch)
-        .add_observer(apply_walk)
         .add_systems(
             RunFixedMainLoop,
             clear_accumulated_input.in_set(RunFixedMainLoopSystems::AfterFixedMainLoop),
@@ -24,10 +23,6 @@ pub(crate) struct Jump;
 #[action_output(bool)]
 pub(crate) struct Crouch;
 
-#[derive(Debug, InputAction)]
-#[action_output(bool)]
-pub(crate) struct Walk;
-
 /// Input accumulated since the last fixed update loop. Is cleared after every fixed update loop.
 #[derive(Component, Clone, Copy, Reflect, Default, Debug)]
 #[reflect(Component)]
@@ -38,8 +33,6 @@ pub(crate) struct AccumulatedInput {
     pub(crate) jumped: bool,
     // Whether any frame since the last fixed update loop input a crouch
     pub(crate) crouched: bool,
-    // Whether any frame since the last fixed update loop input a walk
-    pub(crate) walked: bool,
 }
 
 fn apply_movement(
@@ -60,12 +53,6 @@ fn apply_jump(jump: On<Fire<Jump>>, mut accumulated_inputs: Query<&mut Accumulat
 fn apply_crouch(crouch: On<Fire<Crouch>>, mut accumulated_inputs: Query<&mut AccumulatedInput>) {
     if let Ok(mut accumulated_inputs) = accumulated_inputs.get_mut(crouch.context) {
         accumulated_inputs.crouched = true;
-    }
-}
-
-fn apply_walk(walk: On<Fire<Walk>>, mut accumulated_inputs: Query<&mut AccumulatedInput>) {
-    if let Ok(mut accumulated_inputs) = accumulated_inputs.get_mut(walk.context) {
-        accumulated_inputs.walked = true;
     }
 }
 
