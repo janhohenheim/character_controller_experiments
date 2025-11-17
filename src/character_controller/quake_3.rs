@@ -200,6 +200,7 @@ fn run_kcc(
     );
     for (transform, state, ctx) in scratch.drain(..) {
         let entity = ctx.entity;
+        let dt = ctx.dt;
         let (transform, state): (Transform, CharacterControllerState) =
             match world.run_system_cached_with(move_single, (transform, state, ctx)) {
                 Ok(val) => val,
@@ -208,7 +209,14 @@ fn run_kcc(
                     continue;
                 }
             };
-        *world.entity_mut(entity).get_mut::<Transform>().unwrap() = transform;
+        let last_transform = *world.entity_mut(entity).get_mut::<Transform>().unwrap();
+        let delta = transform.translation - last_transform.translation;
+        let (vel_dir, speed) = Dir3::new_and_length(delta).unwrap_or((Dir3::NEG_Z, 0.0));
+        world
+            .entity_mut(entity)
+            .get_mut::<LinearVelocity>()
+            .unwrap()
+            .0 = vel_dir * speed / dt;
         {
             let mut entity = world.entity_mut(entity);
             let mut current_collider = entity.get_mut::<Collider>().unwrap();
