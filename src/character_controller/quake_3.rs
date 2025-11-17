@@ -434,7 +434,7 @@ fn step_slide_move(
     } else {
         cast_dist
     };
-    if step_size == 0.0 {
+    if step_size <= 0.0 {
         // can't step up
         return (transform, velocity);
     }
@@ -533,12 +533,8 @@ fn slide_move(
             break;
         };
         transform.translation += cast_dir * trace.distance;
-        if trace.distance == 0.0 {
-            // entity is completely trapped in another solid
-            // don't build up falling damage, but allow sideways acceleration
-            velocity.y = 0.0;
-            return (transform, velocity, true);
-        }
+        // Quake early returns on penetration here, but we have wayyyy too many penetrations for some reason,
+        // so that would stop us dead in our tracks :/
 
         // trigger touch event here
         time_left -= time_left * trace.distance / cast_len;
@@ -734,7 +730,7 @@ fn ground_trace(
     };
 
     // do something corrective if the trace starts in a solid...
-    if trace.distance == 0.0 {
+    if trace.distance <= 0.0 {
         if let Some(correct_trace) = correct_all_solid(transform, spatial, state, ctx) {
             trace = correct_trace
         } else {
@@ -792,23 +788,12 @@ fn correct_all_solid(
     ctx: &Ctx,
 ) -> Option<ShapeHitData> {
     let base = transform;
-    for z in -1..=1 {
-        for x in -1..=1 {
-            for y in -1..=1 {
+    for z in [0, -1, 1] {
+        for x in [0, -1, 1] {
+            for y in [0, -1, 1] {
                 let offset = Vec3::new(x as f32, y as f32, z as f32) * 0.05;
                 transform.translation = base.translation + offset;
-                let mut free = true;
-                spatial.shape_intersections_callback(
-                    state.collider(),
-                    transform.translation,
-                    transform.rotation,
-                    &ctx.cfg.filter,
-                    |_| {
-                        free = false;
-                        // stop search
-                        false
-                    },
-                );
+                let free = !is_intersecting(transform, Dir3::NEG_Y, spatial, state, ctx);
                 if free {
                     let trace = sweep_check(
                         transform,
