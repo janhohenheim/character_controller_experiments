@@ -5,6 +5,7 @@ use bevy::{
     log::{LogPlugin, tracing_subscriber::field::MakeExt},
     pbr::Atmosphere,
     prelude::*,
+    scene::SceneInstanceReady,
 };
 use bevy_enhanced_input::prelude::*;
 use bevy_trenchbroom::prelude::*;
@@ -79,7 +80,9 @@ fn main() -> AppExit {
 }
 
 fn setup(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.spawn(SceneRoot(assets.load("playground.map#Scene")));
+    commands
+        .spawn(SceneRoot(assets.load("playground.map#Scene")))
+        .observe(tweak_materials);
     commands.spawn((
         Camera3d::default(),
         EnvironmentMapLight {
@@ -143,8 +146,20 @@ fn reset_player(
     spawner: Single<&Transform, (With<SpawnPlayer>, Without<Player>)>,
 ) {
     let (mut transform, mut state) = player.into_inner();
-    if transform.translation.y < -50.0 {
+    if transform.translation.y < -25.0 {
         state.velocity.y = 0.0;
         transform.translation = spawner.translation;
+    }
+}
+
+fn tweak_materials(
+    ready: On<SceneInstanceReady>,
+    children: Query<&Children>,
+    materials: Query<&MeshMaterial3d<StandardMaterial>>,
+    mut material_assets: ResMut<Assets<StandardMaterial>>,
+) {
+    for mat in materials.iter_many(children.iter_descendants(ready.entity)) {
+        let mat = material_assets.get_mut(mat).unwrap();
+        mat.perceptual_roughness = 0.9;
     }
 }

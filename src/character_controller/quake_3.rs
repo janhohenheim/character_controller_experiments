@@ -61,7 +61,7 @@ impl Default for CharacterController {
             stop_speed: 5.0,
             friction_hz: 8.0,
             acceleration_hz: 12.0,
-            air_acceleration_hz: 3.5,
+            air_acceleration_hz: 1.5,
             num_bumps: 4,
             gravity: 50.0,
             step_size: 1.0,
