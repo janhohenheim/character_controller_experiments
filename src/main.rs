@@ -39,6 +39,7 @@ fn main() -> AppExit {
                             "symphonia_format_ogg::demuxer=warn,",
                             "symphonia_format_riff::demuxer=warn,",
                             "symphonia_format_wav::demuxer=warn,",
+                            "bevy_trenchbroom::physics=off,",
                             "calloop::loop_logic=error,",
                         ),
                         default = bevy::log::DEFAULT_FILTER
@@ -71,6 +72,7 @@ fn main() -> AppExit {
             debug::plugin,
         ))
         .add_systems(Startup, setup)
+        .add_systems(FixedUpdate, reset_player)
         .run()
 }
 
@@ -88,21 +90,36 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     ));
 }
 
-#[point_class(base(Transform, Visibility))]
-#[component(on_add = Player::on_add)]
+#[derive(Component, Reflect, Debug)]
+#[reflect(Component)]
 struct Player;
 
-impl Player {
+#[point_class(base(Transform, Visibility))]
+#[component(on_add = SpawnPlayer::on_add)]
+struct SpawnPlayer;
+
+impl SpawnPlayer {
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         if world.is_scene_world() {
             return;
         }
-        world.commands().entity(ctx.entity).insert((
-            PlayerInput,
-            CharacterController::default(),
-            RigidBody::Kinematic,
-            Collider::cylinder(0.7, 1.8),
-        ));
+        if world.try_query::<&Player>().unwrap().single(&world).is_ok() {
+            return;
+        }
+        let Some(transform) = world.get::<Transform>(ctx.entity).copied() else {
+            return;
+        };
+        let player = world
+            .commands()
+            .spawn((
+                Player,
+                transform,
+                PlayerInput,
+                CharacterController::default(),
+                RigidBody::Kinematic,
+                Collider::cylinder(0.7, 1.8),
+            ))
+            .id();
         let camera = world
             .try_query_filtered::<Entity, With<Camera3d>>()
             .unwrap()
@@ -111,6 +128,12 @@ impl Player {
         world
             .commands()
             .entity(camera)
-            .insert(CharacterControllerCameraOf(ctx.entity));
+            .insert(CharacterControllerCameraOf(player));
+    }
+}
+
+fn reset_player(mut player: Single<&mut Transform, With<Player>>) {
+    if player.translation.y < -100.0 {
+        player.translation = Vec3::ZERO;
     }
 }

@@ -53,7 +53,7 @@
 }
 // entity 1
 {
-"classname" "player"
+"classname" "spawn_player"
 "origin" "-1432 -376 120"
 }
 // entity 2
