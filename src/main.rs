@@ -144,7 +144,7 @@ fn reset_player(
 ) {
     let (mut transform, mut state) = player.into_inner();
     if transform.translation.y < -50.0 {
-        state.velocity.y = 0.0;
+        state.wish_velocity.y = 0.0;
         transform.translation = spawner.translation;
     }
 }

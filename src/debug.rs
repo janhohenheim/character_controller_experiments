@@ -20,12 +20,17 @@ fn update_debug_text(
     let (state, aabb) = kcc.into_inner();
     let velocity = state.velocity;
     let speed = velocity.length();
+    let wish_velocity = state.wish_velocity;
+    let wish_speed = wish_velocity.length();
     let camera_position = camera.translation;
     text.0 = format!(
-        "Speed: {speed:.3}\nVelocity: [{:.3}, {:.3}, {:.3}]\nCamera Position: [{:.3}, {:.3}, {:.3}]\nCollider Aabb:\n  min:[{:.3}, {:.3}, {:.3}]\n  max:[{:.3}, {:.3}, {:.3}]",
+        "Speed: {speed:.3}\nVelocity: [{:.3}, {:.3}, {:.3}]\nWish Speed: {wish_speed:.3}\nWish Velocity: [{:.3}, {:.3}, {:.3}]\nCamera Position: [{:.3}, {:.3}, {:.3}]\nCollider Aabb:\n  min:[{:.3}, {:.3}, {:.3}]\n  max:[{:.3}, {:.3}, {:.3}]",
         velocity.x,
         velocity.y,
         velocity.z,
+        wish_velocity.x,
+        wish_velocity.y,
+        wish_velocity.z,
         camera_position.x,
         camera_position.y,
         camera_position.z,

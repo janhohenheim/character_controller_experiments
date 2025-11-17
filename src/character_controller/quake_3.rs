@@ -132,6 +132,7 @@ impl CharacterController {
 #[derive(Component, Clone, Reflect, Default, Debug)]
 #[reflect(Component)]
 pub(crate) struct CharacterControllerState {
+    pub(crate) wish_velocity: Vec3,
     pub(crate) velocity: Vec3,
     #[reflect(ignore)]
     pub(crate) standing_collider: Collider,
@@ -238,7 +239,7 @@ fn move_single(
     spatial: Res<SpatialQueryPipeline>,
 ) -> (Transform, CharacterControllerState) {
     let original_transform = transform;
-    let mut velocity = state.velocity;
+    let mut velocity = state.wish_velocity;
     // here we'd handle things like spectator, dead, noclip, etc.
 
     check_duck(transform, &spatial, &mut state, &ctx);
@@ -252,7 +253,8 @@ fn move_single(
     };
     ground_trace(transform, velocity, &spatial, &mut state, &ctx);
     (transform, velocity) = dejitter_output(original_transform, transform, velocity);
-    state.velocity = velocity;
+    state.wish_velocity = velocity;
+    state.velocity = (original_transform.translation - transform.translation) / ctx.dt;
 
     (transform, state)
 }
