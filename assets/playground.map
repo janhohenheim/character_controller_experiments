@@ -1348,7 +1348,7 @@
 // entity 64
 {
 "classname" "cube"
-"origin" "-1560 680 40"
+"origin" "-1720 808 104"
 "dynamic" "true"
 "scale" "3 3 3"
 "angles" "0 0 -90"
