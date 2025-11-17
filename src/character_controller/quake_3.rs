@@ -44,7 +44,7 @@ pub(crate) struct CharacterController {
     pub(crate) step_size: f32,
     pub(crate) jump_speed: f32,
     pub(crate) crouch_scale: f32,
-    pub(crate) max_speed: f32,
+    pub(crate) speed: f32,
 }
 
 impl Default for CharacterController {
@@ -67,7 +67,7 @@ impl Default for CharacterController {
             step_size: 1.0,
             jump_speed: 14.3,
             crouch_scale: 0.25,
-            max_speed: 18.0,
+            speed: 18.0,
         }
     }
 }
@@ -314,7 +314,7 @@ fn walk_move(
 
     // clamp the speed lower if ducking
     if state.crouching {
-        wish_speed = f32::min(wish_speed, ctx.cfg.max_speed * ctx.cfg.crouch_scale);
+        wish_speed = f32::min(wish_speed, ctx.cfg.speed * ctx.cfg.crouch_scale);
     }
 
     velocity = accelerate(wish_dir, wish_speed, velocity, ctx.cfg.acceleration_hz, ctx);
@@ -884,5 +884,5 @@ fn cmd_scale(ctx: &Ctx) -> f32 {
         return 0.0;
     }
     let total = mov.length();
-    ctx.cfg.max_speed * max / total
+    ctx.cfg.speed * max / total
 }
