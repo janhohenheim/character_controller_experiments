@@ -4,7 +4,6 @@ use bevy::prelude::*;
 mod input;
 #[allow(dead_code)]
 mod quake_1;
-#[allow(dead_code)]
 mod quake_3;
 
 pub(crate) use input::*;

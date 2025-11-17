@@ -169,7 +169,6 @@ fn run_kcc(
             &CharacterControllerState,
             &AccumulatedInput,
             &Transform,
-            &ColliderAabb,
             Option<&CharacterControllerCamera>,
         )>,
     >,
@@ -178,7 +177,7 @@ fn run_kcc(
     let dt = world.resource::<Time>().delta_secs();
     scratch.extend(
         kccs.iter(world)
-            .map(|(entity, cfg, state, input, transform, aabb, camera)| {
+            .map(|(entity, cfg, state, input, transform, camera)| {
                 (
                     *transform,
                     state.clone(),
@@ -187,7 +186,6 @@ fn run_kcc(
                         cfg: cfg.clone(),
                         input: *input,
                         dt,
-                        aabb: *aabb,
                         orientation: camera
                             .and_then(|e| world.entity(e.0).get::<Transform>().copied())
                             .unwrap_or(*transform),
@@ -230,7 +228,6 @@ struct Ctx {
     orientation: Transform,
     cfg: CharacterController,
     input: AccumulatedInput,
-    aabb: ColliderAabb,
     dt: f32,
 }
 
