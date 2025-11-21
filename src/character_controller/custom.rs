@@ -412,8 +412,8 @@ fn step_slide_move(
     let mut clipped = false;
     let result = move_and_slide.move_and_slide(
         state.collider(),
-        transform.rotation,
         transform.translation,
+        transform.rotation,
         velocity,
         &ctx.cfg.move_and_slide,
         &ctx.cfg.filter,
@@ -453,17 +453,16 @@ fn step_slide_move(
 
     let cast_dir = Dir3::Y;
     // test the player position if they were a stepheight higher
-    let sweep_hit = move_and_slide.sweep(
+    let sweep_hit = move_and_slide.cast_move(
         state.collider(),
         start_o.translation,
         start_o.rotation,
-        cast_dir,
-        cast_dist,
+        cast_dir * cast_dist,
         ctx.cfg.move_and_slide.skin_width,
         &ctx.cfg.filter,
     );
     let step_size = if let Some(sweep_hit) = sweep_hit {
-        sweep_hit.safe_distance
+        sweep_hit.distance
     } else {
         cast_dist
     };
@@ -476,17 +475,17 @@ fn step_slide_move(
     transform.translation = start_o.translation + cast_dir * step_size;
     transform.translation += move_and_slide.depenetrate(
         state.collider(),
-        transform.rotation,
         transform.translation,
+        transform.rotation,
+        &(&ctx.cfg.move_and_slide).into(),
         &ctx.cfg.filter,
-        &ctx.cfg.move_and_slide,
     );
     velocity = start_v;
 
     let result = move_and_slide.move_and_slide(
         state.collider(),
-        transform.rotation,
         transform.translation,
+        transform.rotation,
         velocity,
         &ctx.cfg.move_and_slide,
         &ctx.cfg.filter,
@@ -498,27 +497,26 @@ fn step_slide_move(
     // push down the final amount
     let cast_dir = Dir3::NEG_Y;
     let cast_dist = step_size;
-    let sweep_hit = move_and_slide.sweep(
+    let sweep_hit = move_and_slide.cast_move(
         state.collider(),
         transform.translation,
         transform.rotation,
-        cast_dir,
-        cast_dist,
+        cast_dir * cast_dist,
         ctx.cfg.move_and_slide.skin_width,
         &ctx.cfg.filter,
     );
     if let Some(sweep_hit) = sweep_hit {
-        transform.translation += cast_dir * sweep_hit.safe_distance;
+        transform.translation += cast_dir * sweep_hit.distance;
         velocity = MoveAndSlide::clip_velocity(velocity, &[sweep_hit.normal1.try_into().unwrap()]);
     } else {
         transform.translation += cast_dir * cast_dist;
     }
     transform.translation += move_and_slide.depenetrate(
         state.collider(),
-        transform.rotation,
         transform.translation,
+        transform.rotation,
+        &(&ctx.cfg.move_and_slide).into(),
         &ctx.cfg.filter,
-        &ctx.cfg.move_and_slide,
     );
 
     // non-Quake code incoming: if we
@@ -702,11 +700,11 @@ fn is_intersecting(
     !move_and_slide
         .intersections(
             state.collider(),
-            transform.rotation,
             transform.translation,
-            &ctx.cfg.filter,
+            transform.rotation,
             // No need to worry about skin width, depenetration will take care of it
             0.0,
+            &ctx.cfg.filter,
         )
         .is_empty()
 }
