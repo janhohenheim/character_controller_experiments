@@ -6,6 +6,7 @@ use bevy::{
     pbr::Atmosphere,
     prelude::*,
     scene::SceneInstanceReady,
+    window::{WindowMode, WindowResolution},
 };
 use bevy_enhanced_input::prelude::*;
 use bevy_trenchbroom::prelude::*;
@@ -55,6 +56,14 @@ fn main() -> AppExit {
                                 .with_writer(std::io::stderr),
                         ))
                     },
+                    ..default()
+                })
+                .set(WindowPlugin {
+                    primary_window: Window {
+                        resolution: WindowResolution::new(1920, 1080),
+                        ..default()
+                    }
+                    .into(),
                     ..default()
                 }),
             PhysicsPlugins::default(),
