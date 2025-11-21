@@ -2,6 +2,7 @@ use avian3d::prelude::*;
 use bevy::prelude::*;
 
 mod custom;
+mod fixed_update_utils;
 mod input;
 #[allow(dead_code)]
 mod quake_1;
@@ -13,7 +14,7 @@ pub(crate) use input::*;
 pub(crate) use kcc::*;
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_plugins((input::plugin, kcc::plugin))
+    app.add_plugins((input::plugin, kcc::plugin, fixed_update_utils::plugin))
         .add_systems(
             RunFixedMainLoop,
             sync_camera_transform.after(TransformEasingSystems::UpdateEasingTick),
