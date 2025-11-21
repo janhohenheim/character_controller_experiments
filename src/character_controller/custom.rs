@@ -66,7 +66,7 @@ impl Default for CharacterController {
             jump_speed: 14.3,
             crouch_scale: 0.25,
             speed: 18.0,
-            air_speed: 5.0,
+            air_speed: 2.0,
             move_and_slide: MoveAndSlideConfig {
                 skin_width: 0.003,
                 ..default()
