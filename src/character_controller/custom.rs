@@ -6,8 +6,8 @@ use avian3d::{
 };
 use bevy::{
     ecs::{
-        lifecycle::HookContext, relationship::RelationshipSourceCollection as _,
-        world::DeferredWorld,
+        entity::EntityHashSet, lifecycle::HookContext,
+        relationship::RelationshipSourceCollection as _, world::DeferredWorld,
     },
     prelude::*,
 };
@@ -142,6 +142,7 @@ pub(crate) struct CharacterControllerState {
     pub(crate) ground_plane: bool,
     pub(crate) grounded_entity: Option<Entity>,
     pub(crate) walking: bool,
+    pub(crate) touching_entities: EntityHashSet,
 }
 
 impl CharacterControllerState {
@@ -234,6 +235,7 @@ fn move_single(
     In((mut transform, mut state, ctx)): In<(Transform, CharacterControllerState, Ctx)>,
     move_and_slide: MoveAndSlide,
 ) -> (Vec3, CharacterControllerState) {
+    state.touching_entities.clear();
     let original_transform = transform;
     let mut velocity = state.velocity;
     // here we'd handle things like spectator, dead, noclip, etc.
@@ -245,7 +247,7 @@ fn move_single(
     (transform, velocity) = if state.walking {
         walk_move(transform, velocity, &move_and_slide, &mut state, &ctx)
     } else {
-        air_move(transform, velocity, &move_and_slide, &state, &ctx)
+        air_move(transform, velocity, &move_and_slide, &mut state, &ctx)
     };
     ground_trace(transform, velocity, &move_and_slide, &mut state, &ctx);
 
@@ -347,7 +349,7 @@ fn air_move(
     transform: Transform,
     mut velocity: Vec3,
     move_and_slide: &MoveAndSlide,
-    state: &CharacterControllerState,
+    state: &mut CharacterControllerState,
     ctx: &Ctx,
 ) -> (Transform, Vec3) {
     velocity = friction(velocity, state, move_and_slide, ctx);
@@ -387,7 +389,7 @@ fn step_slide_move(
     mut transform: Transform,
     mut velocity: Vec3,
     move_and_slide: &MoveAndSlide,
-    state: &CharacterControllerState,
+    state: &mut CharacterControllerState,
     ctx: &Ctx,
 ) -> (Transform, Vec3) {
     if gravity {
@@ -470,6 +472,7 @@ fn step_slide_move(
     );
     velocity = start_v;
 
+    let mut touching = std::mem::take(&mut state.touching_entities);
     let result = move_and_slide.move_and_slide(
         state.collider(),
         transform.translation,
@@ -477,8 +480,12 @@ fn step_slide_move(
         velocity,
         &ctx.cfg.move_and_slide,
         &ctx.cfg.filter,
-        |_| true,
+        |hit| {
+            touching.insert(hit.entity);
+            true
+        },
     );
+    std::mem::swap(&mut state.touching_entities, &mut touching);
     transform.translation = result.position;
     velocity = result.clipped_velocity;
 
