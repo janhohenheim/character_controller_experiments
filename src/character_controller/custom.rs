@@ -418,6 +418,7 @@ fn step_slide_move(
     // Non-Quake: also don't step in the air
     if !clipped || !state.walking {
         // we got exactly where we wanted to go first try
+        info!(?transform, ?velocity);
         return (transform, velocity);
     }
     let direct_transform = transform;
@@ -438,6 +439,7 @@ fn step_slide_move(
     if velocity.y > 0.0
         && (trace.is_none() || trace.is_some_and(|t| t.normal1.dot(Vec3::Y) < ctx.cfg.min_walk_cos))
     {
+        info!("b");
         return (transform, velocity);
     }
 
@@ -457,19 +459,30 @@ fn step_slide_move(
         cast_dist
     };
     if step_size <= 0.0 {
+        info!("c");
         // can't step up
         return (transform, velocity);
     }
 
     // try slidemove from this position
     transform.translation = start_o.translation + cast_dir * step_size;
-    transform.translation += move_and_slide.depenetrate(
+    let mut intersections = Vec::new();
+    move_and_slide.intersections(
         state.collider(),
         transform.translation,
         transform.rotation,
-        &(&ctx.cfg.move_and_slide).into(),
+        ctx.cfg.move_and_slide.skin_width,
         &ctx.cfg.filter,
+        |contact_point, normal| {
+            intersections.push((
+                normal,
+                contact_point.penetration + ctx.cfg.move_and_slide.skin_width,
+            ));
+            true
+        },
     );
+    transform.translation +=
+        MoveAndSlide::depenetrate(&((&ctx.cfg.move_and_slide).into()), &intersections);
     velocity = start_v;
 
     let mut touching = std::mem::take(&mut state.touching_entities);
@@ -506,13 +519,24 @@ fn step_slide_move(
     } else {
         transform.translation += cast_dir * cast_dist;
     }
-    transform.translation += move_and_slide.depenetrate(
+    intersections.clear();
+
+    move_and_slide.intersections(
         state.collider(),
         transform.translation,
         transform.rotation,
-        &(&ctx.cfg.move_and_slide).into(),
+        ctx.cfg.move_and_slide.skin_width,
         &ctx.cfg.filter,
+        |contact_point, normal| {
+            intersections.push((
+                normal,
+                contact_point.penetration + ctx.cfg.move_and_slide.skin_width,
+            ));
+            true
+        },
     );
+    transform.translation +=
+        MoveAndSlide::depenetrate(&((&ctx.cfg.move_and_slide).into()), &intersections);
 
     // non-Quake code incoming: if we
     // - didn't really step up
@@ -530,8 +554,10 @@ fn step_slide_move(
 
     if did_not_advance_through_stepping || trace.is_some_and(|t| t.normal1.y < ctx.cfg.min_walk_cos)
     {
+        info!("d");
         (direct_transform, direct_velocity)
     } else {
+        info!("e");
         (transform, velocity)
     }
 }
@@ -716,14 +742,20 @@ fn is_intersecting(
     move_and_slide: &MoveAndSlide,
     ctx: &Ctx,
 ) -> bool {
-    !move_and_slide
-        .intersections(
-            state.collider(),
-            transform.translation,
-            transform.rotation,
-            // No need to worry about skin width, depenetration will take care of it
-            0.0,
-            &ctx.cfg.filter,
-        )
-        .is_empty()
+    let mut intersecting = false;
+    move_and_slide.intersections(
+        state.collider(),
+        transform.translation,
+        transform.rotation,
+        // No need to worry about skin width, depenetration will take care of it.
+        // If we used skin width, we could not stand up if we are closer than skin width to the ground,
+        // which happens when going under a slope.
+        0.0,
+        &ctx.cfg.filter,
+        |_, _| {
+            intersecting = true;
+            false
+        },
+    );
+    intersecting
 }
