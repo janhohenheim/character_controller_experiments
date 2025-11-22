@@ -426,7 +426,7 @@ fn step_slide_move(
     state.touching_entities = direct_collisions;
 
     transform.translation = result.position;
-    velocity = result.clipped_velocity;
+    velocity = result.projected_velocity;
 
     // Non-Quake: also don't step in the air
     if !clipped || !state.walking {
@@ -476,23 +476,14 @@ fn step_slide_move(
 
     // try slidemove from this position
     transform.translation = start_o.translation + cast_dir * step_size;
-    let mut intersections = Vec::new();
-    move_and_slide.intersections(
+    transform.translation += move_and_slide.depenetrate_all(
         state.collider(),
         transform.translation,
         transform.rotation,
-        ctx.cfg.move_and_slide.skin_width,
+        &((&ctx.cfg.move_and_slide).into()),
         &ctx.cfg.filter,
-        |contact_point, normal| {
-            intersections.push((
-                normal,
-                contact_point.penetration + ctx.cfg.move_and_slide.skin_width,
-            ));
-            true
-        },
     );
-    transform.translation +=
-        MoveAndSlide::depenetrate(&((&ctx.cfg.move_and_slide).into()), &intersections);
+
     velocity = start_v;
 
     let mut step_collisions = EntityHashSet::new();
@@ -509,7 +500,7 @@ fn step_slide_move(
         },
     );
     transform.translation = result.position;
-    velocity = result.clipped_velocity;
+    velocity = result.projected_velocity;
 
     // push down the final amount
     let cast_dir = Dir3::NEG_Y;
@@ -528,24 +519,14 @@ fn step_slide_move(
     } else {
         transform.translation += cast_dir * cast_dist;
     }
-    intersections.clear();
 
-    move_and_slide.intersections(
+    transform.translation += move_and_slide.depenetrate_all(
         state.collider(),
         transform.translation,
         transform.rotation,
-        ctx.cfg.move_and_slide.skin_width,
+        &((&ctx.cfg.move_and_slide).into()),
         &ctx.cfg.filter,
-        |contact_point, normal| {
-            intersections.push((
-                normal,
-                contact_point.penetration + ctx.cfg.move_and_slide.skin_width,
-            ));
-            true
-        },
     );
-    transform.translation +=
-        MoveAndSlide::depenetrate(&((&ctx.cfg.move_and_slide).into()), &intersections);
 
     // non-Quake code incoming: if we
     // - didn't really step up
