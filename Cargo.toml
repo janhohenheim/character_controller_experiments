@@ -26,4 +26,4 @@ type_complexity = "allow"
 needless_range_loop = "allow"
 
 [patch.crates-io]
-avian3d = {version = "0.4.1", path = "../avian/crates/avian3d"}
+avian3d = {version = "0.4.1", git = "https://github.com/janhohenheim/avian", branch = "cns"}
