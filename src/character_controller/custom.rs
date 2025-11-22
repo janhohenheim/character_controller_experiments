@@ -293,13 +293,13 @@ fn walk_move(
     let mut forward = Vec3::from(ctx.orientation.forward());
     forward.y = 0.0;
     if let Some(grounded) = state.grounded {
-        forward = MoveAndSlide::clip_velocity(forward, &[grounded.normal1.try_into().unwrap()]);
+        forward = MoveAndSlide::project_velocity(forward, &[grounded.normal1.try_into().unwrap()]);
     }
     forward = forward.normalize_or_zero();
     let mut right = Vec3::from(ctx.orientation.right());
     right.y = 0.0;
     if let Some(grounded) = state.grounded {
-        right = MoveAndSlide::clip_velocity(right, &[grounded.normal1.try_into().unwrap()]);
+        right = MoveAndSlide::project_velocity(right, &[grounded.normal1.try_into().unwrap()]);
     }
     right = right.normalize_or_zero();
 
@@ -320,8 +320,13 @@ fn walk_move(
     let acceleration_speed = velocity.length();
 
     if let Some(grounded) = state.grounded {
-        velocity = MoveAndSlide::clip_velocity(velocity, &[grounded.normal1.try_into().unwrap()]);
+        velocity =
+            MoveAndSlide::project_velocity(velocity, &[grounded.normal1.try_into().unwrap()]);
     }
+    // Set vertical speed to zero when on ground.
+    // In theory, `friction` already does this for us, but `project_velocity` introduces small errors
+    // along the way, which make the velocity slightly positive when standing on ground.
+    velocity.y = 0.0;
 
     // don't decrease velocity when going up or down a slope
     velocity = velocity.normalize_or_zero() * acceleration_speed;
@@ -379,7 +384,8 @@ fn air_move(
     if state.ground_plane
         && let Some(grounded) = state.grounded
     {
-        velocity = MoveAndSlide::clip_velocity(velocity, &[grounded.normal1.try_into().unwrap()]);
+        velocity =
+            MoveAndSlide::project_velocity(velocity, &[grounded.normal1.try_into().unwrap()]);
     }
     step_slide_move(transform, velocity, move_and_slide, state, ctx)
 }
@@ -518,7 +524,7 @@ fn step_slide_move(
     );
     if let Some(trace) = trace {
         transform.translation += cast_dir * trace.distance;
-        velocity = MoveAndSlide::clip_velocity(velocity, &[trace.normal1.try_into().unwrap()]);
+        velocity = MoveAndSlide::project_velocity(velocity, &[trace.normal1.try_into().unwrap()]);
     } else {
         transform.translation += cast_dir * cast_dist;
     }
