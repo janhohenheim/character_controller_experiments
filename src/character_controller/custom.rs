@@ -66,10 +66,7 @@ impl Default for CharacterController {
             crouch_scale: 0.25,
             speed: 14.0,
             air_speed: 1.0,
-            move_and_slide: MoveAndSlideConfig {
-                skin_width: 0.003,
-                ..default()
-            },
+            move_and_slide: MoveAndSlideConfig::default(),
         }
     }
 }
