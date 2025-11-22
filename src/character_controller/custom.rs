@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use avian3d::{
     character_controller::move_and_slide::MoveHitData,
@@ -235,10 +235,12 @@ struct Ctx {
 fn move_single(
     In((mut transform, mut state, ctx)): In<(Transform, CharacterControllerState, Ctx)>,
     move_and_slide: MoveAndSlide,
+    time: Res<Time>,
 ) -> (Vec3, CharacterControllerState) {
     state.touching_entities.clear();
     let original_transform = transform;
     let mut velocity = state.velocity;
+    let delta_time = time.delta();
     // here we'd handle things like spectator, dead, noclip, etc.
 
     check_duck(transform, &move_and_slide, &mut state, &ctx);
@@ -246,9 +248,23 @@ fn move_single(
     ground_trace(transform, velocity, &move_and_slide, &mut state, &ctx);
 
     (transform, velocity) = if state.walking {
-        walk_move(transform, velocity, &move_and_slide, &mut state, &ctx)
+        walk_move(
+            transform,
+            velocity,
+            delta_time,
+            &move_and_slide,
+            &mut state,
+            &ctx,
+        )
     } else {
-        air_move(transform, velocity, &move_and_slide, &mut state, &ctx)
+        air_move(
+            transform,
+            velocity,
+            delta_time,
+            &move_and_slide,
+            &mut state,
+            &ctx,
+        )
     };
     ground_trace(transform, velocity, &move_and_slide, &mut state, &ctx);
 
@@ -276,6 +292,7 @@ fn dejitter_output(original_transform: Transform, mut transform: Transform) -> T
 fn walk_move(
     transform: Transform,
     mut velocity: Vec3,
+    delta_time: Duration,
     move_and_slide: &MoveAndSlide,
     state: &mut CharacterControllerState,
     ctx: &Ctx,
@@ -283,10 +300,10 @@ fn walk_move(
     let jumped: bool;
     (velocity, jumped) = check_jump(velocity, state, ctx);
     if jumped {
-        return air_move(transform, velocity, move_and_slide, state, ctx);
+        return air_move(transform, velocity, delta_time, move_and_slide, state, ctx);
     }
 
-    velocity = friction(velocity, state, move_and_slide, ctx);
+    velocity = friction(velocity, delta_time, state, ctx);
     let scale = cmd_scale(ctx);
 
     let movement = ctx.input.last_movement.unwrap_or_default();
@@ -315,7 +332,7 @@ fn walk_move(
         wish_speed = f32::min(wish_speed, ctx.cfg.speed * ctx.cfg.crouch_scale);
     }
 
-    velocity = accelerate(wish_dir, wish_speed, velocity, move_and_slide, ctx);
+    velocity = accelerate(wish_dir, wish_speed, velocity, delta_time, ctx);
 
     let acceleration_speed = velocity.length();
 
@@ -331,7 +348,7 @@ fn walk_move(
         return (transform, velocity);
     }
 
-    step_slide_move(transform, velocity, move_and_slide, state, ctx)
+    step_slide_move(transform, velocity, delta_time, move_and_slide, state, ctx)
 }
 
 #[must_use]
@@ -350,11 +367,12 @@ fn check_jump(mut velocity: Vec3, state: &mut CharacterControllerState, ctx: &Ct
 fn air_move(
     transform: Transform,
     mut velocity: Vec3,
+    delta_time: Duration,
     move_and_slide: &MoveAndSlide,
     state: &mut CharacterControllerState,
     ctx: &Ctx,
 ) -> (Transform, Vec3) {
-    velocity = friction(velocity, state, move_and_slide, ctx);
+    velocity = friction(velocity, delta_time, state, ctx);
     let scale = cmd_scale(ctx);
 
     let movement = ctx.input.last_movement.unwrap_or_default();
@@ -371,8 +389,8 @@ fn air_move(
     wish_speed *= scale;
 
     // not on ground, so little effect on velocity
-    velocity = air_accelerate(wish_dir, wish_speed, velocity, move_and_slide, ctx);
-    velocity += Vec3::NEG_Y * ctx.cfg.gravity * move_and_slide.time.delta_secs();
+    velocity = air_accelerate(wish_dir, wish_speed, velocity, delta_time, ctx);
+    velocity += Vec3::NEG_Y * ctx.cfg.gravity * delta_time.as_secs_f32();
 
     // we may have a ground plane that is very steep, even
     // though we don't have a groundentity
@@ -383,13 +401,14 @@ fn air_move(
         velocity =
             MoveAndSlide::project_velocity(velocity, &[grounded.normal1.try_into().unwrap()]);
     }
-    step_slide_move(transform, velocity, move_and_slide, state, ctx)
+    step_slide_move(transform, velocity, delta_time, move_and_slide, state, ctx)
 }
 
 #[must_use]
 fn step_slide_move(
     mut transform: Transform,
     mut velocity: Vec3,
+    delta_time: Duration,
     move_and_slide: &MoveAndSlide,
     state: &mut CharacterControllerState,
     ctx: &Ctx,
@@ -411,6 +430,7 @@ fn step_slide_move(
         transform.translation,
         transform.rotation,
         velocity,
+        delta_time,
         &move_and_slide_cfg,
         &ctx.cfg.filter,
         |hit| {
@@ -481,13 +501,13 @@ fn step_slide_move(
     );
 
     velocity = start_v;
-
     let mut step_collisions = EntityHashSet::new();
     let result = move_and_slide.move_and_slide(
         state.collider(),
         transform.translation,
         transform.rotation,
         velocity,
+        delta_time,
         &move_and_slide_cfg,
         &ctx.cfg.filter,
         |hit| {
@@ -552,7 +572,7 @@ fn accelerate(
     wish_dir: Dir3,
     wish_speed: f32,
     velocity: Vec3,
-    move_and_slide: &MoveAndSlide,
+    delta_time: Duration,
     ctx: &Ctx,
 ) -> Vec3 {
     let current_speed = velocity.dot(wish_dir.into());
@@ -562,7 +582,7 @@ fn accelerate(
     }
 
     let accel_speed = f32::min(
-        ctx.cfg.acceleration_hz * move_and_slide.time.delta_secs() * wish_speed,
+        ctx.cfg.acceleration_hz * delta_time.as_secs_f32() * wish_speed,
         add_speed,
     );
     velocity + accel_speed * wish_dir
@@ -573,7 +593,7 @@ fn air_accelerate(
     wish_dir: Dir3,
     wish_speed: f32,
     velocity: Vec3,
-    move_and_slide: &MoveAndSlide,
+    delta_time: Duration,
     ctx: &Ctx,
 ) -> Vec3 {
     let current_speed = velocity.dot(wish_dir.into());
@@ -586,7 +606,7 @@ fn air_accelerate(
     }
 
     let accel_speed = f32::min(
-        ctx.cfg.acceleration_hz * move_and_slide.time.delta_secs() * wish_speed,
+        ctx.cfg.acceleration_hz * delta_time.as_secs_f32() * wish_speed,
         add_speed,
     );
     velocity + accel_speed * wish_dir
@@ -594,8 +614,8 @@ fn air_accelerate(
 
 fn friction(
     mut velocity: Vec3,
+    delta_time: Duration,
     state: &CharacterControllerState,
-    move_and_slide: &MoveAndSlide,
     ctx: &Ctx,
 ) -> Vec3 {
     let mut vec = velocity;
@@ -611,7 +631,7 @@ fn friction(
     }
     let drop = if state.walking {
         let stop_speed = f32::max(speed, ctx.cfg.stop_speed);
-        stop_speed * ctx.cfg.friction_hz * move_and_slide.time.delta_secs()
+        stop_speed * ctx.cfg.friction_hz * delta_time.as_secs_f32()
     } else {
         0.0
     };
