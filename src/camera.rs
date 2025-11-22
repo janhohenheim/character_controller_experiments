@@ -1,6 +1,7 @@
 use std::f32::consts::TAU;
 
 use bevy::{
+    input::common_conditions::input_just_pressed,
     prelude::*,
     window::{CursorGrabMode, CursorOptions},
 };
@@ -9,8 +10,14 @@ use bevy_enhanced_input::prelude::*;
 use crate::{Player, user_input::Rotate};
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(Update, capture_cursor)
-        .add_observer(rotate_camera);
+    app.add_systems(
+        Update,
+        (
+            capture_cursor.run_if(input_just_pressed(MouseButton::Left)),
+            release_cursor.run_if(input_just_pressed(KeyCode::Escape)),
+        ),
+    )
+    .add_observer(rotate_camera);
 }
 
 fn rotate_camera(
@@ -30,4 +37,9 @@ fn rotate_camera(
 fn capture_cursor(mut cursor: Single<&mut CursorOptions>) {
     cursor.grab_mode = CursorGrabMode::Locked;
     cursor.visible = false;
+}
+
+fn release_cursor(mut cursor: Single<&mut CursorOptions>) {
+    cursor.visible = true;
+    cursor.grab_mode = CursorGrabMode::None;
 }
