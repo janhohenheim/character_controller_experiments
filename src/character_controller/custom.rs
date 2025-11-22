@@ -732,16 +732,15 @@ fn is_intersecting(
     ctx: &Ctx,
 ) -> bool {
     let mut intersecting = false;
-    move_and_slide.intersections(
+    // No need to worry about skin width, depenetration will take care of it.
+    // If we used skin width, we could not stand up if we are closer than skin width to the ground,
+    // which happens when going under a slope.
+    move_and_slide.query_pipeline.shape_intersections_callback(
         state.collider(),
         transform.translation,
         transform.rotation,
-        // No need to worry about skin width, depenetration will take care of it.
-        // If we used skin width, we could not stand up if we are closer than skin width to the ground,
-        // which happens when going under a slope.
-        0.0,
         &ctx.cfg.filter,
-        |_, _| {
+        |_| {
             intersecting = true;
             false
         },
