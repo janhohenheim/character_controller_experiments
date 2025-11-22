@@ -64,7 +64,7 @@ impl Default for CharacterController {
             jump_speed: 14.3,
             crouch_scale: 0.25,
             speed: 18.0,
-            max_air_speed: 2.0,
+            max_air_speed: 1.0,
             move_and_slide: MoveAndSlideConfig {
                 skin_width: 0.003,
                 ..default()
@@ -329,7 +329,7 @@ fn walk_move(
         return (transform, velocity);
     }
 
-    step_slide_move(false, transform, velocity, move_and_slide, state, ctx)
+    step_slide_move(transform, velocity, move_and_slide, state, ctx)
 }
 
 #[must_use]
@@ -370,6 +370,7 @@ fn air_move(
 
     // not on ground, so little effect on velocity
     velocity = air_accelerate(wish_dir, wish_speed, velocity, move_and_slide, ctx);
+    velocity += Vec3::NEG_Y * ctx.cfg.gravity * move_and_slide.time.delta_secs();
 
     // we may have a ground plane that is very steep, even
     // though we don't have a groundentity
@@ -379,23 +380,17 @@ fn air_move(
     {
         velocity = MoveAndSlide::clip_velocity(velocity, &[grounded.normal1.try_into().unwrap()]);
     }
-
-    step_slide_move(true, transform, velocity, move_and_slide, state, ctx)
+    step_slide_move(transform, velocity, move_and_slide, state, ctx)
 }
 
 #[must_use]
 fn step_slide_move(
-    gravity: bool,
     mut transform: Transform,
     mut velocity: Vec3,
     move_and_slide: &MoveAndSlide,
     state: &mut CharacterControllerState,
     ctx: &Ctx,
 ) -> (Transform, Vec3) {
-    if gravity {
-        velocity += Vec3::NEG_Y * ctx.cfg.gravity * move_and_slide.time.delta_secs();
-    }
-
     let start_o = transform;
     let start_v = velocity;
 
