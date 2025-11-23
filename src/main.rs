@@ -160,10 +160,11 @@ impl SpawnPlayer {
                 PlayerInput,
                 CharacterController::default(),
                 RigidBody::Kinematic,
-                Mesh3d(mesh),
-                MeshMaterial3d(material),
                 Collider::cylinder(0.7, 1.8),
             ))
+            .with_children(|parent| {
+                parent.spawn((Mesh3d(mesh), MeshMaterial3d(material)));
+            })
             .id();
         let camera = world
             .try_query_filtered::<Entity, With<Camera3d>>()

@@ -24,6 +24,10 @@ pub(super) fn plugin(app: &mut App) {
         .configure_sets(
             FixedPostUpdate,
             CharacterControllerSystems::ApplyMovement.in_set(PhysicsSystems::First),
+        )
+        .add_systems(
+            FixedPostUpdate,
+            update_player_mesh.after(CharacterControllerSystems::ApplyMovement),
         );
 }
 
@@ -74,6 +78,38 @@ fn sync_camera_transform(
             camera_transform.translation = kcc_transform.translation
                 + Vec3::Y * (-height / 2.0 + view_height)
                 + camera_transform.rotation * Vec3::Z * cam_state.distance;
+        }
+    }
+}
+
+/// Make player shorter when crouching.
+fn update_player_mesh(
+    players: Query<(&CharacterControllerState, &Children)>,
+    mut meshes: Query<&mut Transform, With<Mesh3d>>,
+) {
+    for (state, children) in players.iter() {
+        let (scale, translation) = if state.crouching {
+            let stand_h = state
+                .standing_collider
+                .aabb(Vec3::default(), Rotation::default())
+                .size()
+                .y;
+            let crouch_h = state
+                .crouching_collider
+                .aabb(Vec3::default(), Rotation::default())
+                .size()
+                .y;
+            let scale = crouch_h / stand_h;
+            let translation = (stand_h - crouch_h) / 2.0;
+            (scale, translation)
+        } else {
+            (1.0, 0.0)
+        };
+
+        let mut meshes = meshes.iter_many_mut(children);
+        while let Some(mut tf) = meshes.fetch_next() {
+            tf.scale.y = scale;
+            tf.translation.y = -translation;
         }
     }
 }
