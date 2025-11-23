@@ -10,6 +10,16 @@ pub(super) fn plugin(app: &mut App) {
 
 fn setup(mut commands: Commands) {
     commands.spawn((Node::default(), Text::default(), DebugText));
+    commands.spawn((
+        Node {
+            justify_self: JustifySelf::End,
+            justify_content: JustifyContent::End,
+            ..default()
+        },
+        Text::new(
+            "Controls:\nWASD: move\nSpace: jump\nSpace (hold): autohop\nCtrl: crouch\nEsc: free mouse\nR: reset position",
+        ),
+    ));
 }
 
 fn update_debug_text(
