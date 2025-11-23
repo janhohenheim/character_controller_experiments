@@ -88,9 +88,8 @@ fn main() -> AppExit {
             debug::plugin,
         ))
         .add_systems(Startup, setup)
-        .add_systems(FixedPreUpdate, reset_player)
         .add_systems(Update, generate_mipmaps::<StandardMaterial>)
-        .add_observer(reset_player_on_input)
+        .add_observer(reset_player)
         .run()
 }
 
@@ -170,17 +169,6 @@ impl SpawnPlayer {
 }
 
 fn reset_player(
-    player: Single<(&mut Transform, &mut CharacterControllerState), With<Player>>,
-    spawner: Single<&Transform, (With<SpawnPlayer>, Without<Player>)>,
-) {
-    let (mut transform, mut state) = player.into_inner();
-    if transform.translation.y < -50.0 {
-        state.velocity.y = 0.0;
-        transform.translation = spawner.translation;
-    }
-}
-
-fn reset_player_on_input(
     _fire: On<Fire<Reset>>,
     player: Single<(&mut Transform, &mut CharacterControllerState), With<Player>>,
     spawner: Single<&Transform, (With<SpawnPlayer>, Without<Player>)>,
