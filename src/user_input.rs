@@ -22,6 +22,10 @@ pub(crate) struct Rotate;
 #[action_output(Vec2)]
 pub(crate) struct Reset;
 
+#[derive(Debug, InputAction)]
+#[action_output(f32)]
+pub(crate) struct Zoom;
+
 impl PlayerInput {
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         world
@@ -51,6 +55,10 @@ impl PlayerInput {
                 ),
                 (Action::<Rotate>::new(),Negate::all(), Scale::splat(0.1),
                     Bindings::spawn((Spawn(Binding::mouse_motion()), Axial::right_stick()))),
+                (
+                    Action::<Zoom>::new(),
+                    bindings![(Binding::mouse_wheel(), SwizzleAxis::YXZ)],
+                )
             ]));
     }
 }

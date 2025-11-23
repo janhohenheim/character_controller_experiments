@@ -13,8 +13,11 @@ use bevy::{
     prelude::*,
 };
 
-use crate::character_controller::{
-    CharacterControllerCamera, CharacterControllerSystems, input::AccumulatedInput,
+use crate::{
+    camera::CharacterCameraState,
+    character_controller::{
+        CharacterControllerCamera, CharacterControllerSystems, input::AccumulatedInput,
+    },
 };
 
 #[derive(Component, Clone, Reflect, Debug)]
@@ -22,6 +25,7 @@ use crate::character_controller::{
 #[require(
     AccumulatedInput,
     CharacterControllerState,
+    CharacterCameraState,
     TranslationInterpolation,
     RigidBody = RigidBody::Kinematic,
     Collider = Collider::cylinder(0.7, 1.8)

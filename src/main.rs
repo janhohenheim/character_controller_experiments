@@ -145,6 +145,13 @@ impl SpawnPlayer {
         let Some(transform) = world.get::<Transform>(ctx.entity).copied() else {
             return;
         };
+        let mut meshes = world.resource_mut::<Assets<Mesh>>();
+        let mesh = meshes.add(Mesh::from(Cylinder::new(0.7, 1.8)));
+        let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
+        let material = materials.add(StandardMaterial {
+            base_color: bevy::color::palettes::tailwind::GREEN_600.into(),
+            ..default()
+        });
         let player = world
             .commands()
             .spawn((
@@ -155,6 +162,9 @@ impl SpawnPlayer {
                 RigidBody::Kinematic,
                 Collider::cylinder(0.7, 1.8),
             ))
+            .with_children(|parent| {
+                parent.spawn((Mesh3d(mesh), MeshMaterial3d(material)));
+            })
             .id();
         let camera = world
             .try_query_filtered::<Entity, With<Camera3d>>()
