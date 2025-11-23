@@ -17,7 +17,17 @@ fn setup(mut commands: Commands) {
             ..default()
         },
         Text::new(
-            "Controls:\nWASD: move\nSpace: jump\nSpace (hold): autohop\nCtrl: crouch\nEsc: free mouse\nR: reset position",
+            [
+                "Controls:",
+                "WASD: move",
+                "Space: jump",
+                "Space (hold): autohop",
+                "Ctrl: crouch",
+                "Wheel: zoom",
+                "Esc: free mouse",
+                "R: reset position",
+            ]
+            .join("\n"),
         ),
     ));
 }
