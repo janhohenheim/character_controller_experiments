@@ -13,6 +13,7 @@ use bevy_enhanced_input::prelude::*;
 use bevy_mod_mipmap_generator::{MipmapGeneratorPlugin, generate_mipmaps};
 use bevy_trenchbroom::prelude::*;
 use bevy_trenchbroom_avian::AvianPhysicsBackend;
+use bevy_framepace::FramepacePlugin;
 
 use crate::{
     character_controller::{
@@ -71,6 +72,7 @@ fn main() -> AppExit {
             PhysicsPlugins::default(),
             EnhancedInputPlugin,
             MipmapGeneratorPlugin,
+            FramepacePlugin,
             TrenchBroomPlugins(
                 TrenchBroomConfig::new("character_controller_experiment")
                     .default_solid_spawn_hooks(|| {

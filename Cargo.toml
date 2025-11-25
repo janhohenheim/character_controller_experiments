@@ -10,6 +10,7 @@ bevy_enhanced_input = "0.19.3"
 bevy_trenchbroom = "0.10.0"
 bevy_trenchbroom_avian = "0.10.0"
 bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator" }
+bevy_framepace = "0.20.0"
 
 [profile.dev]
 opt-level = 1
